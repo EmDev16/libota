@@ -29,3 +29,7 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Local family tree backups
+json-backups-until-production/*
+!json-backups-until-production/.gitkeep
