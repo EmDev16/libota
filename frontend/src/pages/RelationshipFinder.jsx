@@ -10,6 +10,64 @@ const RelationshipFinder = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Helper function to convert relationship type to readable text
+  const getRelationshipText = (relationType, fromPerson, toPerson) => {
+    if (!relationType) return '';
+    
+    const fromGender = fromPerson?.gender || 'other';
+    const toGender = toPerson?.gender || 'other';
+    
+    switch (relationType) {
+      case 'parent':
+        if (toGender === 'male') return t('father');
+        if (toGender === 'female') return t('mother');
+        return t('parent');
+      case 'child':
+        if (toGender === 'male') return t('son');
+        if (toGender === 'female') return t('daughter');
+        return t('child');
+      case 'spouse':
+        if (toGender === 'male') return t('husband');
+        if (toGender === 'female') return t('wife');
+        return t('spouse');
+      default:
+        return relationType;
+    }
+  };
+
+  // Helper function to create relationship description like "X is Y's mother"
+  const getRelationshipDescription = (relationType, fromPerson, toPerson) => {
+    if (!relationType || !fromPerson || !toPerson) return '';
+    
+    const fromName = `${fromPerson.firstName} ${fromPerson.lastName}`;
+    const toName = `${toPerson.firstName} ${toPerson.lastName}`;
+    const toGender = toPerson?.gender || 'other';
+    const fromGender = fromPerson?.gender || 'other';
+    
+    switch (relationType) {
+      case 'parent':
+        if (toGender === 'male') return `${toName} is ${fromName}'s ${t('father')}`;
+        if (toGender === 'female') return `${toName} is ${fromName}'s ${t('mother')}`;
+        return `${toName} is ${fromName}'s ${t('parent')}`;
+      case 'child':
+        if (toGender === 'male') return `${toName} is ${fromName}'s ${t('son')}`;
+        if (toGender === 'female') return `${toName} is ${fromName}'s ${t('daughter')}`;
+        return `${toName} is ${fromName}'s ${t('child')}`;
+      case 'spouse':
+        if (toGender === 'male') return `${toName} is ${fromName}'s ${t('husband')}`;
+        if (toGender === 'female') return `${toName} is ${fromName}'s ${t('wife')}`;
+        return `${toName} is ${fromName}'s ${t('spouse')}`;
+      case 'sibling':
+        if (toGender === 'male' && fromGender === 'male') return `${toName} is ${fromName}'s ${t('brother')}`;
+        if (toGender === 'female' && fromGender === 'female') return `${toName} is ${fromName}'s ${t('sister')}`;
+        if (toGender === 'male') return `${toName} is ${fromName}'s ${t('brother')}`;
+        if (toGender === 'female') return `${toName} is ${fromName}'s ${t('sister')}`;
+        return `${toName} is ${fromName}'s ${t('sibling')}`;
+      default:
+        return '';
+    }
+  };
+
   useEffect(() => {
     loadPeople();
   }, []);
@@ -83,44 +141,87 @@ const RelationshipFinder = () => {
 
       {result && (
         <div className="relationship-result">
-          {result.mutualKey && result.mutualKey !== 'none' && (
-            <div className="relationship-badge">
-              {t(result.mutualKey) !== result.mutualKey ? t(result.mutualKey) : result.mutualRelationship}
-            </div>
-          )}
+          {(() => {
+            const mutual = (result.mutualKey && t(result.mutualKey) !== result.mutualKey)
+              ? t(result.mutualKey)
+              : (result.mutualRelationship || '');
 
-          <h2 className="relationship-title">
-            {t(result.relationshipKey) !== result.relationshipKey ? t(result.relationshipKey) : result.relationship}
-          </h2>
+            const title = (result.relationshipKey && t(result.relationshipKey) !== result.relationshipKey)
+              ? t(result.relationshipKey)
+              : (result.relationship || '');
 
-          {result.description && (
-            <p className="relationship-desc">{result.description}</p>
-          )}
+            const desc = result.description || (
+              result.path && result.path.length === 2 && title
+                ? `${result.path[1].firstName} is ${result.path[0].firstName}'s ${title}`
+                : ''
+            );
+
+            return (
+              <>
+                {mutual && (
+                  <div className="relationship-badge">{mutual}</div>
+                )}
+                {title && (
+                  <h2 className="relationship-title">{title}</h2>
+                )}
+                {desc && (
+                  <p className="relationship-desc">{desc}</p>
+                )}
+              </>
+            );
+          })()}
 
           {result.path && result.path.length > 0 && (
             <div className="relationship-path">
               <h3>{t('path')}:</h3>
+              {result.description && (
+                <p className="relationship-summary">{result.description}</p>
+              )}
               <div className="path-breadcrumbs">
-                {result.path.map((person, index) => (
-                  <React.Fragment key={person._id || index}>
-                    {index > 0 && (
-                      <div className="path-step-connector">
-                        <span className="step-arrow">➔</span>
-                        {person.relationToPrevious && (
-                          <span className="step-badge">
-                            {t(person.relationToPrevious) !== person.relationToPrevious
-                              ? t(person.relationToPrevious)
-                              : person.relationToPrevious}
-                          </span>
+                {result.path.map((person, index) => {
+                  const prevPerson = result.path[index - 1];
+                  const nextPerson = result.path[index + 1];
+                  
+                  // Get relationship to previous person - use backend's relationToPrevious
+                  const relationToPrev = person.relationToPrevious
+                    ? getRelationshipDescription(
+                        person.relationToPrevious, 
+                        prevPerson, 
+                        person
+                      )
+                    : '';
+                  
+                  // Get relationship to next person - use backend's relationToNext
+                  const relationToNext = person.relationToNext && nextPerson
+                    ? getRelationshipDescription(
+                        person.relationToNext,
+                        person,
+                        nextPerson
+                      )
+                    : '';
+                  
+                  return (
+                    <React.Fragment key={person._id || index}>
+                      {index > 0 && relationToPrev && (
+                        <div className="path-step-connector">
+                          <span className="arrow-icon">→</span>
+                          <span className="step-relation">{relationToPrev}</span>
+                        </div>
+                      )}
+                      {index > 0 && !relationToPrev && (
+                        <div className="path-step-connector">
+                          <span className="arrow-icon">→</span>
+                        </div>
+                      )}
+                      <div className={`path-card ${index === 0 ? 'start' : index === result.path.length - 1 ? 'end' : ''}`}>
+                        <span className="path-name">{person.firstName} {person.lastName}</span>
+                        {relationToNext && index < result.path.length - 1 && (
+                          <span className="next-relation">{relationToNext}</span>
                         )}
-                        <span className="step-arrow">➔</span>
                       </div>
-                    )}
-                    <div className={`path-card ${index === 0 ? 'start' : index === result.path.length - 1 ? 'end' : ''}`}>
-                      <span className="path-name">{person.firstName} {person.lastName}</span>
-                    </div>
-                  </React.Fragment>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           )}
