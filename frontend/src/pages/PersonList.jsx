@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { personAPI } from '../api';
+import { personAPI, IMAGE_BASE_URL } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 
 const PersonList = () => {
@@ -76,7 +76,7 @@ const PersonList = () => {
             <div key={person._id} className="person-card-item">
               {person.photo && (
                 <img
-                  src={`http://localhost:5000${person.photo}`}
+                  src={`${IMAGE_BASE_URL}${person.photo}`}
                   alt={person.fullName}
                   className="person-photo-small"
                 />

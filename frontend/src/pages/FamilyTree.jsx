@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { treeAPI } from '../api';
+import { treeAPI, IMAGE_BASE_URL } from '../api';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 const FamilyTree = () => {
@@ -56,7 +56,7 @@ const FamilyTree = () => {
                     <div className="person-card">
                       {person.photo && (
                         <img
-                          src={`http://localhost:5000${person.photo}`}
+                          src={`${IMAGE_BASE_URL}${person.photo}`}
                           alt={person.fullName}
                           className="person-photo"
                         />
