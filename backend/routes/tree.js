@@ -1,6 +1,7 @@
 const express = require('express');
 const Person = require('../models/Person');
 const { auth } = require('../middleware/auth');
+const { deduceKinship } = require('../utils/kinship');
 
 const router = express.Router();
 
@@ -98,47 +99,87 @@ router.get('/relationship/:id1/:id2', auth, async (req, res) => {
       return res.status(404).json({ error: 'One or both persons not found' });
     }
 
-    // BFS to find shortest path
-    const findPath = async (startId, endId) => {
-      const queue = [[startId]];
+    // BFS to find shortest path with step directions
+    const findPathWithSteps = async (startId, endId) => {
+      if (startId.toString() === endId.toString()) {
+        return { path: [startId], steps: [] };
+      }
+
+      const queue = [{
+        currentId: startId,
+        path: [startId],
+        steps: []
+      }];
       const visited = new Set();
 
       while (queue.length > 0) {
-        const path = queue.shift();
-        const currentId = path[path.length - 1];
+        const { currentId, path, steps } = queue.shift();
+        const currentStr = currentId.toString();
 
-        if (currentId.toString() === endId.toString()) {
-          return path;
-        }
-
-        if (visited.has(currentId.toString())) continue;
-        visited.add(currentId.toString());
+        if (visited.has(currentStr)) continue;
+        visited.add(currentStr);
 
         const person = await Person.findById(currentId)
-          .populate('parents')
-          .populate('spouses')
-          .populate('children');
+          .populate('parents', '_id')
+          .populate('spouses', '_id')
+          .populate('children', '_id');
 
         if (!person) continue;
 
-        // Add parents
+        // Try parents (UP)
         for (const parent of person.parents || []) {
-          if (!visited.has(parent._id.toString())) {
-            queue.push([...path, parent._id]);
+          const parentId = parent._id;
+          const parentStr = parentId.toString();
+          if (parentStr === endId.toString()) {
+            return {
+              path: [...path, parentId],
+              steps: [...steps, { from: currentId, to: parentId, type: 'parent' }]
+            };
+          }
+          if (!visited.has(parentStr)) {
+            queue.push({
+              currentId: parentId,
+              path: [...path, parentId],
+              steps: [...steps, { from: currentId, to: parentId, type: 'parent' }]
+            });
           }
         }
 
-        // Add spouses
-        for (const spouse of person.spouses || []) {
-          if (!visited.has(spouse._id.toString())) {
-            queue.push([...path, spouse._id]);
-          }
-        }
-
-        // Add children
+        // Try children (DOWN)
         for (const child of person.children || []) {
-          if (!visited.has(child._id.toString())) {
-            queue.push([...path, child._id]);
+          const childId = child._id;
+          const childStr = childId.toString();
+          if (childStr === endId.toString()) {
+            return {
+              path: [...path, childId],
+              steps: [...steps, { from: currentId, to: childId, type: 'child' }]
+            };
+          }
+          if (!visited.has(childStr)) {
+            queue.push({
+              currentId: childId,
+              path: [...path, childId],
+              steps: [...steps, { from: currentId, to: childId, type: 'child' }]
+            });
+          }
+        }
+
+        // Try spouses (LATERAL)
+        for (const spouse of person.spouses || []) {
+          const spouseId = spouse._id;
+          const spouseStr = spouseId.toString();
+          if (spouseStr === endId.toString()) {
+            return {
+              path: [...path, spouseId],
+              steps: [...steps, { from: currentId, to: spouseId, type: 'spouse' }]
+            };
+          }
+          if (!visited.has(spouseStr)) {
+            queue.push({
+              currentId: spouseId,
+              path: [...path, spouseId],
+              steps: [...steps, { from: currentId, to: spouseId, type: 'spouse' }]
+            });
           }
         }
       }
@@ -146,60 +187,71 @@ router.get('/relationship/:id1/:id2', auth, async (req, res) => {
       return null;
     };
 
-    const path = await findPath(id1, id2);
+    const result = await findPathWithSteps(id1, id2);
 
-    if (!path) {
-      return res.json({ relationship: 'No relationship found', path: [] });
+    if (!result) {
+      return res.json({
+        relationship: 'No relationship found',
+        relationshipKey: 'noRelationship',
+        mutualRelationship: 'No relationship found',
+        mutualKey: 'noRelationship',
+        category: 'none',
+        description: `No connection found between ${person1.firstName} and ${person2.firstName}`,
+        path: []
+      });
     }
 
-    // Get person details for the path
-    const pathPeople = await Person.find({ _id: { $in: path } })
-      .select('firstName lastName');
+    const { path, steps } = result;
 
-    // Determine relationship type
-    const relationship = determineRelationship(path);
+    // Fetch person details for the path and preserve strict sequential order
+    const pathPeople = await Person.find({ _id: { $in: path } })
+      .select('firstName lastName gender photo');
+    const peopleMap = new Map(pathPeople.map(p => [p._id.toString(), p]));
+
+    const orderedPath = path.map((id, index) => {
+      const p = peopleMap.get(id.toString());
+      const stepToNext = steps[index] || null;
+      const stepFromPrev = index > 0 ? steps[index - 1] : null;
+      return {
+        _id: id,
+        firstName: p ? p.firstName : '',
+        lastName: p ? p.lastName : '',
+        gender: p ? p.gender : 'other',
+        photo: p ? p.photo : null,
+        relationToPrevious: stepFromPrev ? stepFromPrev.type : null,
+        relationToNext: stepToNext ? stepToNext.type : null
+      };
+    });
+
+    // Deduce rich kinship details
+    const kinship = deduceKinship(person1, person2, steps);
 
     res.json({
-      relationship,
-      path: pathPeople
+      relationship: kinship.targetTitle,
+      relationshipKey: kinship.relationshipKey,
+      mutualRelationship: kinship.mutualTitle,
+      mutualKey: kinship.mutualKey,
+      category: kinship.category,
+      description: kinship.description,
+      person1: {
+        _id: person1._id,
+        firstName: person1.firstName,
+        lastName: person1.lastName,
+        gender: person1.gender
+      },
+      person2: {
+        _id: person2._id,
+        firstName: person2.firstName,
+        lastName: person2.lastName,
+        gender: person2.gender
+      },
+      steps,
+      path: orderedPath
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-// Helper function to determine relationship type
-function determineRelationship(path) {
-  if (path.length === 1) {
-    return 'Same person';
-  }
-
-  if (path.length === 2) {
-    return 'Direct relationship (spouse)';
-  }
-
-  if (path.length === 3) {
-    return 'Parent/Child';
-  }
-
-  if (path.length === 4) {
-    return 'Grandparent/Grandchild';
-  }
-
-  if (path.length === 5) {
-    return 'Great-grandparent/Great-grandchild';
-  }
-
-  // For longer paths, it could be various relationships
-  const generations = path.length - 1;
-  if (generations % 2 === 0) {
-    // Even number of steps could be cousins, siblings, etc.
-    return `Related (${generations} steps apart)`;
-  } else {
-    // Odd number of steps
-    return `Related (${generations} steps apart)`;
-  }
-}
 
 // Get people by relationship type (e.g., all first cousins)
 router.get('/filter/:type', auth, async (req, res) => {
@@ -234,7 +286,7 @@ router.get('/filter/:type', auth, async (req, res) => {
         // Get first cousins (children of parents' siblings)
         if (rootPerson.parents && rootPerson.parents.length > 0) {
           const parentsSiblings = await Person.find({
-            _id: { $ne: { $in: rootPerson.parents } },
+            _id: { $nin: rootPerson.parents },
             parents: { $in: rootPerson.parents }
           });
 
