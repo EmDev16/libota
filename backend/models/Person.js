@@ -20,6 +20,7 @@ const personSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],
+    lowercase: true,
     required: true
   },
   photo: {
@@ -57,9 +58,8 @@ const personSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt timestamp before saving
-personSchema.pre('save', function(next) {
+personSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 // Virtual for full name
