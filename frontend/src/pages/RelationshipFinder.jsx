@@ -83,18 +83,45 @@ const RelationshipFinder = () => {
 
       {result && (
         <div className="relationship-result">
-          <h2>{t('relationship')}: {result.relationship}</h2>
+          {result.mutualKey && result.mutualKey !== 'none' && (
+            <div className="relationship-badge">
+              {t(result.mutualKey) !== result.mutualKey ? t(result.mutualKey) : result.mutualRelationship}
+            </div>
+          )}
+
+          <h2 className="relationship-title">
+            {t(result.relationshipKey) !== result.relationshipKey ? t(result.relationshipKey) : result.relationship}
+          </h2>
+
+          {result.description && (
+            <p className="relationship-desc">{result.description}</p>
+          )}
+
           {result.path && result.path.length > 0 && (
             <div className="relationship-path">
               <h3>{t('path')}:</h3>
-              <ul>
+              <div className="path-breadcrumbs">
                 {result.path.map((person, index) => (
-                  <li key={index}>
-                    {person.firstName} {person.lastName}
-                    {index < result.path.length - 1 && ' → '}
-                  </li>
+                  <React.Fragment key={person._id || index}>
+                    {index > 0 && (
+                      <div className="path-step-connector">
+                        <span className="step-arrow">➔</span>
+                        {person.relationToPrevious && (
+                          <span className="step-badge">
+                            {t(person.relationToPrevious) !== person.relationToPrevious
+                              ? t(person.relationToPrevious)
+                              : person.relationToPrevious}
+                          </span>
+                        )}
+                        <span className="step-arrow">➔</span>
+                      </div>
+                    )}
+                    <div className={`path-card ${index === 0 ? 'start' : index === result.path.length - 1 ? 'end' : ''}`}>
+                      <span className="path-name">{person.firstName} {person.lastName}</span>
+                    </div>
+                  </React.Fragment>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
         </div>

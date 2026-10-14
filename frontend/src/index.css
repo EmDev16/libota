@@ -423,21 +423,84 @@ body {
   padding: 1.5rem;
   border-radius: 8px;
   margin-top: 2rem;
+  border-left: 4px solid #3498db;
 }
 
-.relationship-result h2 {
+.relationship-badge {
+  display: inline-block;
+  background: #ebf5fb;
+  color: #2980b9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #aed6f1;
+}
+
+.relationship-title {
   color: #2c3e50;
-  margin-bottom: 1rem;
+  font-size: 1.8rem;
+  margin-bottom: 0.4rem;
 }
 
-.relationship-path ul {
-  list-style: none;
-  padding: 0;
+.relationship-desc {
+  color: #566573;
+  font-size: 1.05rem;
+  margin-bottom: 1.5rem;
 }
 
-.relationship-path li {
-  display: inline;
-  color: #7f8c8d;
+.relationship-path h3 {
+  color: #34495e;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.path-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.path-card {
+  background: white;
+  border: 1px solid #d5dbdb;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #2c3e50;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.path-card.start,
+.path-card.end {
+  background: #2c3e50;
+  color: white;
+  border-color: #2c3e50;
+}
+
+.path-step-connector {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.step-arrow {
+  color: #95a5a6;
+  font-size: 0.9rem;
+}
+
+.step-badge {
+  background: #eaeded;
+  color: #566573;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .admin-panel {
