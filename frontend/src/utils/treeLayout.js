@@ -179,18 +179,27 @@ export function buildFamilyTree(people, levels) {
   const processed = new Set();
 
   const hasParentsInTree = p => (p.parents || []).some(pid => peopleMap.has(pid));
-  // A person without parents who is married to someone that does have parents in the tree.
-  // They get pulled in next to their partner, so they must not start a family of their own.
-  const isMarriedIn = p =>
-    !hasParentsInTree(p) &&
-    (p.spouses || []).some(sid => {
+  // People without parents who are connected, through a chain of spouses, to someone who
+  // does have parents in the tree (a married-in partner, or that partner's other partner).
+  // They get pulled in next to that person, so they must not start a family of their own.
+  const attached = new Set();
+  const visited = new Set();
+  const queue = people.filter(hasParentsInTree);
+  queue.forEach(p => visited.add(p._id));
+  while (queue.length > 0) {
+    const p = queue.shift();
+    (p.spouses || []).forEach(sid => {
       const s = peopleMap.get(sid);
-      return s && hasParentsInTree(s);
+      if (!s || visited.has(sid) || hasParentsInTree(s)) return;
+      visited.add(sid);
+      attached.add(sid);
+      queue.push(s);
     });
+  }
 
   // Real roots first
   people
-    .filter(p => !hasParentsInTree(p) && !isMarriedIn(p))
+    .filter(p => !hasParentsInTree(p) && !attached.has(p._id))
     .forEach(root => {
       if (processed.has(root._id)) return;
       const familyNode = buildFamilyNode(root, peopleMap, levels, processed);

@@ -275,8 +275,11 @@ const FamilyTree = () => {
 
   const renderTraditionalView = () => {
     try {
-      const familyTree = calculateTraditionalLayout(people, rootPersonId || null);
+      // People with no links at all are shown in their own section, not as lone roots
       const unlinked = findUnlinkedPeople(people);
+      const unlinkedIds = new Set(unlinked.map(p => p._id));
+      const linkedPeople = people.filter(p => !unlinkedIds.has(p._id));
+      const familyTree = calculateTraditionalLayout(linkedPeople, rootPersonId || null);
 
       return (
         <div className="traditional-tree-view">
@@ -290,7 +293,7 @@ const FamilyTree = () => {
             ))}
           </div>
 
-          {unlinked.length > 0 && (
+          {!rootPersonId && unlinked.length > 0 && (
             <div className="unlinked-section">
               <h3 className="generation-label">Unlinked Members</h3>
               <div className="generation-couples">
