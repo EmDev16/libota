@@ -63,7 +63,7 @@ export const treeAPI = {
 
 export const exportAPI = {
   exportJSON: () => api.get('/export/json'),
-  importJSON: (data) => api.post('/export/json', { data })
+     importJSON: (data, mode = 'add') => api.post('/export/json', { data, mode })
 };
 
 export default api;

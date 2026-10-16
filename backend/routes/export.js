@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Person = require('../models/Person');
 const User = require('../models/User');
 const { auth, adminAuth } = require('../middleware/auth');
@@ -50,107 +51,136 @@ router.get('/json', adminAuth, async (req, res) => {
   }
 });
 
+// Ids can be plain strings, ObjectIds or populated objects ({ _id: ... })
+const toId = (v) => (v && typeof v === 'object' ? String(v._id ?? v.id ?? v.$oid) : String(v));
+
 // Import data from JSON
+// body: { data: { people: [...], users?: [...] }, mode?: 'add' | 'replace' }
+//   add     (default) adds the people to the existing data, deletes nothing
+//   replace deletes all existing people AFTER the import worked, and re-creates
+//           users from the file that do not exist yet. Existing users are never deleted.
 router.post('/json', adminAuth, async (req, res) => {
   try {
-    const { data } = req.body;
+    const { data, mode = 'add' } = req.body || {};
 
-    if (!data || !data.people) {
+    if (!data || !Array.isArray(data.people) || data.people.length === 0) {
       return res.status(400).json({ error: 'Invalid import data format' });
     }
-
-    // Clear existing data (optional - you might want to merge instead)
-    await Person.deleteMany({});
-    await User.deleteMany({});
-
-    // Import users first
-    if (data.users) {
-      for (const userData of data.users) {
-        const user = new User({
-          username: userData.username,
-          password: 'ChangeMe123', // Default password for imported users
-          role: userData.role,
-          language: userData.language,
-          createdAt: userData.createdAt
-        });
-        await user.save();
-      }
+    if (!['add', 'replace'].includes(mode)) {
+      return res.status(400).json({ error: 'mode must be "add" or "replace"' });
+    }
+    if (data.people.some(p => !p || !p.firstName)) {
+      return res.status(400).json({ error: 'Every person needs at least a firstName' });
     }
 
-    // Create a map of old IDs to new IDs
+    // Every imported person gets a fresh MongoDB id, so ids in the file can never
+    // clash with existing data. Relationships are rewritten to the new ids.
+    const keyOf = (p, i) => (p._id ? toId(p._id) : `row-${i}`);
     const idMap = new Map();
+    const rel = new Map();
+    data.people.forEach((p, i) => {
+      const key = keyOf(p, i);
+      idMap.set(key, new mongoose.Types.ObjectId());
+      rel.set(key, { parents: new Set(), children: new Set(), spouses: new Set() });
+    });
 
-    // Import people
-    for (const personData of data.people) {
-      const person = new Person({
-        firstName: personData.firstName,
-        lastName: personData.lastName,
-        birthDate: personData.birthDate,
-        deathDate: personData.deathDate,
-        gender: personData.gender,
-        photo: personData.photo,
-        description: personData.description,
-        parents: [], // Will update after all people are created
-        spouses: [], // Will update after all people are created
-        children: [], // Will update after all people are created
-        createdAt: personData.createdAt,
-        updatedAt: personData.updatedAt
+    // Make parent <-> child and spouse <-> spouse links two-way, ignoring unknown ids
+    data.people.forEach((p, i) => {
+      const key = keyOf(p, i);
+      const known = (list) => (list || []).map(toId).filter(o => rel.has(o) && o !== key);
+
+      known(p.parents).forEach(o => {
+        rel.get(key).parents.add(o);
+        rel.get(o).children.add(key);
       });
+      known(p.children).forEach(o => {
+        rel.get(key).children.add(o);
+        rel.get(o).parents.add(key);
+      });
+      known(p.spouses).forEach(o => {
+        rel.get(key).spouses.add(o);
+        rel.get(o).spouses.add(key);
+      });
+    });
 
-      // Find or create the creator user
-      if (personData.createdBy) {
-        const creator = await User.findOne({ username: personData.createdBy });
-        if (creator) {
-          person.createdBy = creator._id;
-        } else {
-          // Default to first admin user
-          const admin = await User.findOne({ role: 'admin' });
-          person.createdBy = admin ? admin._id : null;
-        }
-      } else {
-        const admin = await User.findOne({ role: 'admin' });
-        person.createdBy = admin ? admin._id : null;
+    // Restoring a backup: re-create users that are missing (never deletes users)
+    let usersImported = 0;
+    if (mode === 'replace' && Array.isArray(data.users)) {
+      for (const userData of data.users) {
+        if (!userData.username) continue;
+        if (await User.findOne({ username: userData.username })) continue;
+        await new User({
+          username: userData.username,
+          password: 'ChangeMe123', // default password for re-created users
+          role: userData.role,
+          language: userData.language
+        }).save();
+        usersImported++;
       }
-
-      await person.save();
-      idMap.set(personData._id, person._id);
     }
 
-    // Update relationships with new IDs
-    for (const personData of data.people) {
-      const newId = idMap.get(personData._id);
-      if (!newId) continue;
+    // Who gets credited as creator: the person from the file if that user exists,
+    // otherwise the admin doing the import
+    const existingUsers = await User.find().select('username');
+    const creatorByName = new Map(existingUsers.map(u => [u.username, u._id]));
+    const requester = req.user || {};
+    const fallbackCreator =
+      requester._id ||
+      requester.id ||
+      requester.userId ||
+      req.userId ||
+      (await User.findOne({ role: 'admin' }))?._id ||
+      null;
 
-      const person = await Person.findById(newId);
+    if (!fallbackCreator) {
+      // No people have been inserted or deleted at this point
+      return res.status(400).json({
+        error: 'Could not find an admin user to credit as creator of the imported people'
+      });
+    }
 
-      // Map old parent IDs to new IDs
-      const newParentIds = personData.parents
-        .map(oldId => idMap.get(oldId))
-        .filter(id => id);
+    const toNew = (set) => [...set].map(o => idMap.get(o));
 
-      // Map old spouse IDs to new IDs
-      const newSpouseIds = personData.spouses
-        .map(oldId => idMap.get(oldId))
-        .filter(id => id);
+    const docs = data.people.map((p, i) => {
+      const key = keyOf(p, i);
+      const r = rel.get(key);
+      const doc = {
+        _id: idMap.get(key),
+        firstName: p.firstName,
+        lastName: p.lastName,
+        birthDate: p.birthDate,
+        deathDate: p.deathDate,
+        gender: p.gender,
+        photo: p.photo,
+        description: p.description,
+        parents: toNew(r.parents),
+        spouses: toNew(r.spouses),
+        children: toNew(r.children),
+        createdBy: creatorByName.get(p.createdBy) || fallbackCreator
+      };
+      if (p.createdAt) doc.createdAt = p.createdAt;
+      if (p.updatedAt) doc.updatedAt = p.updatedAt;
+      return doc;
+    });
 
-      // Map old child IDs to new IDs
-      const newChildIds = personData.children
-        .map(oldId => idMap.get(oldId))
-        .filter(id => id);
+    // Insert first. In replace mode the old people are only deleted after the insert
+    // worked, so a failed import never leaves you with an empty database.
+    const inserted = await Person.insertMany(docs);
 
-      person.parents = newParentIds;
-      person.spouses = newSpouseIds;
-      person.children = newChildIds;
-
-      await person.save();
+    if (mode === 'replace') {
+      const newIds = inserted.map(d => d._id);
+      await Person.deleteMany({ _id: { $nin: newIds } });
     }
 
     res.json({
       message: 'Data imported successfully',
-      peopleImported: data.people.length,
-      usersImported: data.users ? data.users.length : 0
+      imported: inserted.length,
+      peopleImported: inserted.length,
+      usersImported,
+      mode
     });
   } catch (error) {
+    console.error('Import error:', error);
     res.status(500).json({ error: error.message });
   }
 });

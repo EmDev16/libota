@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { authAPI, exportAPI, importAPI } from '../api';
+import { authAPI, exportAPI } from '../api';
 
 // Accepts a plain array of people, or an object like { people: [...] }
 const extractPeople = (parsed) => {
@@ -99,9 +99,12 @@ const AdminPanel = () => {
 
     // 1. Read and check the file
     let people;
+    let data;
     try {
       const parsed = JSON.parse(await file.text());
       people = extractPeople(parsed);
+      // keep the rest of a full backup (users...) next to the people list
+      data = { ...(Array.isArray(parsed) ? {} : parsed), people };
     } catch (error) {
       setImportStatus({
         type: 'error',
@@ -147,7 +150,7 @@ const AdminPanel = () => {
     // 3. Send it to the backend
     setImporting(true);
     try {
-      const response = await importAPI.importJSON({ people, mode: importMode });
+      const response = await exportAPI.importJSON(data, importMode);
       setImportStatus({
         type: 'success',
         text: t('importDone', {
@@ -160,7 +163,7 @@ const AdminPanel = () => {
       setImportStatus({
         type: 'error',
         text:
-          (error.response && error.response.data && error.response.data.message) ||
+          (error.response && error.response.data && (error.response.data.error || error.response.data.message)) ||
           error.message ||
           t('error')
       });
