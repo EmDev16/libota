@@ -633,7 +633,7 @@ body {
 .children-connector-line {
   width: 2px;
   height: 30px;
-  background: #3498db;
+  background: var(--union-color, #3498db);
 }
 
 .children-container {
@@ -642,6 +642,84 @@ body {
   flex-wrap: nowrap;
   justify-content: center;
   align-items: flex-start;
+}
+
+.children-container > .family-node-wrapper {
+  position: relative;
+  padding: 30px 1rem 0;
+}
+
+.children-container > .family-node-wrapper::before,
+.children-container > .family-node-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper::before {
+  border-right: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper:only-child {
+  padding-top: 0;
+}
+
+.children-container > .family-node-wrapper:only-child::before,
+.children-container > .family-node-wrapper:only-child::after {
+  display: none;
+}
+
+.children-container > .family-node-wrapper:first-child::before,
+.children-container > .family-node-wrapper:last-child::after {
+  border: 0 none;
+}
+
+/* Person with several partners: cards and links share one grid */
+.family-grid {
+  display: grid;
+  align-items: center;
+}
+
+.link-cell {
+  position: relative;
+  align-self: stretch;
+  min-width: 48px;
+}
+
+.link-horizontal {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--link-color, #e74c3c);
+  border-radius: 2px;
+}
+
+.link-vertical {
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--union-color, #3498db);
+}
+
+.grid-children {
+  align-self: start;
+  justify-self: center;
 }
 
 /* Each child gets a horizontal bar segment + a vertical drop to its card */

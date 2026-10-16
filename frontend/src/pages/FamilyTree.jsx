@@ -47,9 +47,83 @@ const PersonCard = ({ person, onClick }) => (
   </div>
 );
 
-// A couple with all of their children underneath (recursive)
+// Colors used to tell the partnerships of one person apart
+const LINK_COLORS = ['#e74c3c', '#8e44ad', '#16a085', '#f39c12'];
+
+// Children hanging under a couple (or under one link of a person with several partners)
+const ChildrenRow = ({ nodes, onPersonClick, color }) => (
+  <div className="children-row" style={{ '--union-color': color || '#3498db' }}>
+    <div className="children-connector-line" />
+    <div className="children-container">
+      {nodes.map((childNode) => (
+        <FamilyNode
+          key={childNode.couple[0]._id}
+          familyNode={childNode}
+          onPersonClick={onPersonClick}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+// A person / couple / person with several partners, with all of their children underneath
 const FamilyNode = ({ familyNode, onPersonClick }) => {
-  const { couple, children } = familyNode;
+  const { couple, links, children } = familyNode;
+
+  // Several partnerships: cards and links share one grid, so every group of
+  // children sits exactly under the link between its two parents
+  if (links.length > 1) {
+    return (
+      <div className="family-node-wrapper">
+        <div
+          className="family-grid"
+          style={{ gridTemplateColumns: `repeat(${couple.length * 2 - 1}, auto)` }}
+        >
+          {couple.map((person, i) => {
+            const link = links[i];
+            const color = LINK_COLORS[i % LINK_COLORS.length];
+            const hasKids = !!link && link.children.length > 0;
+
+            return (
+              <React.Fragment key={person._id}>
+                <div className="grid-card" style={{ gridColumn: i * 2 + 1, gridRow: 1 }}>
+                  <PersonCard person={person} onClick={onPersonClick} />
+                </div>
+
+                {link && (
+                  <div
+                    className="link-cell"
+                    style={{
+                      gridColumn: i * 2 + 2,
+                      gridRow: 1,
+                      '--link-color': color,
+                      '--union-color': color
+                    }}
+                  >
+                    <div className="link-horizontal" />
+                    {hasKids && <div className="link-vertical" />}
+                  </div>
+                )}
+
+                {hasKids && (
+                  <div className="grid-children" style={{ gridColumn: i * 2 + 2, gridRow: 2 }}>
+                    <ChildrenRow
+                      nodes={link.children}
+                      onPersonClick={onPersonClick}
+                      color={color}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // One person, or one couple
+  const kids = links.length === 1 ? links[0].children : children;
 
   return (
     <div className="family-node-wrapper">
@@ -62,19 +136,8 @@ const FamilyNode = ({ familyNode, onPersonClick }) => {
         ))}
       </div>
 
-      {children && children.length > 0 && (
-        <div className="children-row">
-          <div className="children-connector-line" />
-          <div className="children-container">
-            {children.map((childNode) => (
-              <FamilyNode
-                key={childNode.couple[0]._id}
-                familyNode={childNode}
-                onPersonClick={onPersonClick}
-              />
-            ))}
-          </div>
-        </div>
+      {kids && kids.length > 0 && (
+        <ChildrenRow nodes={kids} onPersonClick={onPersonClick} />
       )}
     </div>
   );

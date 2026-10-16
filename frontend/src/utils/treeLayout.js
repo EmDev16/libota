@@ -164,84 +164,139 @@ export function groupCouples(people) {
 
 /**
  * Build proper family tree structure
- * Returns hierarchical tree with couples and their children
+ * Returns hierarchical tree. Each node is:
+ * {
+ *   couple:   people shown on one row, in order, e.g. [exPartner, person, newPartner]
+ *   links:    links[i] sits between couple[i] and couple[i + 1] and holds the
+ *             children those two have together: { children: [node, ...] }
+ *   children: children when the row is a single person, otherwise all children flattened
+ *   level
+ * }
  */
 export function buildFamilyTree(people, levels) {
   const tree = [];
   const peopleMap = new Map(people.map(p => [p._id, p]));
   const processed = new Set();
 
-  // Start with people who have no parents in the tree (roots)
-  const roots = people.filter(p => !p.parents || p.parents.length === 0);
+  const hasParentsInTree = p => (p.parents || []).some(pid => peopleMap.has(pid));
+  // A person without parents who is married to someone that does have parents in the tree.
+  // They get pulled in next to their partner, so they must not start a family of their own.
+  const isMarriedIn = p =>
+    !hasParentsInTree(p) &&
+    (p.spouses || []).some(sid => {
+      const s = peopleMap.get(sid);
+      return s && hasParentsInTree(s);
+    });
 
-  roots.forEach(root => {
-    if (processed.has(root._id)) return;
+  // Real roots first
+  people
+    .filter(p => !hasParentsInTree(p) && !isMarriedIn(p))
+    .forEach(root => {
+      if (processed.has(root._id)) return;
+      const familyNode = buildFamilyNode(root, peopleMap, levels, processed);
+      if (familyNode) tree.push(familyNode);
+    });
 
-    const familyNode = buildFamilyNode(root, peopleMap, levels, processed);
-    if (familyNode) {
-      tree.push(familyNode);
-    }
-  });
-
-  // Handle people who have parents but whose parents weren't processed
+  // Anyone left over
   people.forEach(person => {
     if (!processed.has(person._id)) {
       const familyNode = buildFamilyNode(person, peopleMap, levels, processed);
-      if (familyNode) {
-        tree.push(familyNode);
-      }
+      if (familyNode) tree.push(familyNode);
     }
   });
 
   return tree;
 }
 
+const birthTime = p => (p.birthDate ? new Date(p.birthDate).getTime() : Infinity);
+const byBirth = (a, b) => {
+  const ta = birthTime(a);
+  const tb = birthTime(b);
+  return ta === tb ? 0 : ta < tb ? -1 : 1;
+};
+
 /**
- * Build a family node with spouse and children
+ * Build a family node: the person, their partner(s) and the children of each partnership.
+ * Supports a person with up to two partners (partner - person - partner). Married-in
+ * partners at either end can bring one more partner of their own.
  */
 function buildFamilyNode(person, peopleMap, levels, processed) {
   if (processed.has(person._id)) return null;
 
-  // Get spouses
-  const spouses = [];
-  if (person.spouses && person.spouses.length > 0) {
-    person.spouses.forEach(spouseId => {
-      const spouse = peopleMap.get(spouseId);
-      if (spouse && !processed.has(spouseId)) {
-        spouses.push(spouse);
-        processed.add(spouseId);
-      }
-    });
+  const hasParentsInTree = p => (p.parents || []).some(pid => peopleMap.has(pid));
+  const available = ids =>
+    (ids || []).map(id => peopleMap.get(id)).filter(p => p && !processed.has(p._id));
+
+  // 1. Decide who is on the row and in which order
+  const partners = available(person.spouses);
+  let path = [person];
+  if (partners.length === 1) path = [person, partners[0]];
+  else if (partners.length >= 2) path = [partners[0], person, partners[1]];
+
+  const inPath = p => path.some(x => x._id === p._id);
+  const otherPartnerOf = end =>
+    available(end.spouses).find(p => !inPath(p) && !hasParentsInTree(p)) || null;
+
+  for (let guard = 0; guard < 4; guard++) {
+    let grew = false;
+    const first = path[0];
+    const last = path[path.length - 1];
+    if (first._id !== person._id) {
+      const q = otherPartnerOf(first);
+      if (q) { path.unshift(q); grew = true; }
+    }
+    if (last._id !== person._id) {
+      const q = otherPartnerOf(last);
+      if (q) { path.push(q); grew = true; }
+    }
+    if (!grew) break;
   }
 
-  // Mark this person as processed
-  processed.add(person._id);
+  path.forEach(p => processed.add(p._id));
 
-  // Get children (shared with spouse if they have children together)
-  const children = [];
-  const allParentIds = [person._id, ...spouses.map(s => s._id)];
+  // 2. Hand every child to the link between its two parents
+  const idxOf = new Map(path.map((p, i) => [p._id, i]));
+  const slots = path.length === 1 ? [[]] : path.slice(1).map(() => []);
+  const seen = new Set();
 
-  if (person.children && person.children.length > 0) {
-    person.children.forEach(childId => {
+  path.forEach(member => {
+    (member.children || []).forEach(childId => {
+      if (seen.has(childId)) return;
+      seen.add(childId);
+
       const child = peopleMap.get(childId);
-      if (child && !processed.has(childId)) {
-        // Only add child if all of its parents are in this couple
-        const childParents = (child.parents || []).filter(pid => peopleMap.has(pid));
-        const isChildOfThisCouple = childParents.every(pid => allParentIds.includes(pid));
+      if (!child || processed.has(childId)) return;
 
-        if (isChildOfThisCouple) {
-          const childNode = buildFamilyNode(child, peopleMap, levels, processed);
-          if (childNode) {
-            children.push(childNode);
-          }
-        }
+      const known = (child.parents || []).filter(pid => peopleMap.has(pid));
+      if (known.length === 0 || !known.every(pid => idxOf.has(pid))) return;
+
+      let slot = -1;
+      if (path.length === 1) {
+        slot = 0;
+      } else if (known.length === 1) {
+        // only one known parent: put the child under that person's first link
+        slot = Math.max(idxOf.get(known[0]) - 1, 0);
+      } else if (known.length === 2) {
+        const [a, b] = known.map(pid => idxOf.get(pid)).sort((x, y) => x - y);
+        if (b - a === 1) slot = a;
       }
+
+      if (slot >= 0) slots[slot].push(child);
     });
-  }
+  });
+
+  // 3. Build the child nodes (oldest first)
+  const groups = slots.map(list =>
+    list
+      .sort(byBirth)
+      .map(child => buildFamilyNode(child, peopleMap, levels, processed))
+      .filter(Boolean)
+  );
 
   return {
-    couple: [person, ...spouses],
-    children,
+    couple: path,
+    links: path.length === 1 ? [] : groups.map(children => ({ children })),
+    children: path.length === 1 ? groups[0] : groups.flat(),
     level: levels.get(person._id) || 0
   };
 }
