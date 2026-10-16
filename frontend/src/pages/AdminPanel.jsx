@@ -1,6 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { authAPI, exportAPI } from '../api';
+
+// Accepts a plain array of people, or an object like { people: [...] }
+const extractPeople = (parsed) => {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object') {
+    for (const key of ['people', 'persons', 'data']) {
+      if (Array.isArray(parsed[key])) return parsed[key];
+    }
+  }
+  return null;
+};
 
 const AdminPanel = () => {
   const { t } = useTranslation();
@@ -13,6 +24,12 @@ const AdminPanel = () => {
     role: 'member',
     language: 'en'
   });
+
+  // Import state
+  const fileInputRef = useRef(null);
+  const [importMode, setImportMode] = useState('add');
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState(null); // { type: 'success' | 'error', text }
 
   useEffect(() => {
     loadUsers();
@@ -70,6 +87,88 @@ const AdminPanel = () => {
       link.click();
     } catch (error) {
       console.error('Error exporting:', error);
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // lets the same file be chosen again later
+    if (!file) return;
+
+    setImportStatus(null);
+
+    // 1. Read and check the file
+    let people;
+    let data;
+    try {
+      const parsed = JSON.parse(await file.text());
+      people = extractPeople(parsed);
+      // keep the rest of a full backup (users...) next to the people list
+      data = { ...(Array.isArray(parsed) ? {} : parsed), people };
+    } catch (error) {
+      setImportStatus({
+        type: 'error',
+        text: t('importBadJson', 'This file is not valid JSON.')
+      });
+      return;
+    }
+
+    if (!people || people.length === 0) {
+      setImportStatus({
+        type: 'error',
+        text: t('importNoPeople', 'This file does not contain a list of people.')
+      });
+      return;
+    }
+
+    // 2. Ask for confirmation
+    const n = people.length;
+    if (importMode === 'replace') {
+      const ok =
+        window.confirm(
+          t('importConfirmReplace', {
+            n,
+            defaultValue:
+              'This will DELETE all existing people and replace them with the {{n}} people in this file. Continue?'
+          })
+        ) &&
+        window.confirm(
+          t('importConfirmReplaceAgain', 'Are you sure? Export a backup first if you want to keep the current data.')
+        );
+      if (!ok) return;
+    } else if (
+      !window.confirm(
+        t('importConfirmAdd', {
+          n,
+          defaultValue: 'Add {{n}} people to the existing data?'
+        })
+      )
+    ) {
+      return;
+    }
+
+    // 3. Send it to the backend
+    setImporting(true);
+    try {
+      const response = await exportAPI.importJSON(data, importMode);
+      setImportStatus({
+        type: 'success',
+        text: t('importDone', {
+          n: response.data.imported,
+          defaultValue: 'Imported {{n}} people.'
+        })
+      });
+    } catch (error) {
+      console.error('Error importing:', error);
+      setImportStatus({
+        type: 'error',
+        text:
+          (error.response && error.response.data && (error.response.data.error || error.response.data.message)) ||
+          error.message ||
+          t('error')
+      });
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -166,9 +265,44 @@ const AdminPanel = () => {
 
       <div className="admin-section">
         <h2>{t('dataBackup')}</h2>
-        <button onClick={handleExportJSON} className="btn-primary">
-          {t('exportJSON')}
-        </button>
+
+        <div className="backup-actions">
+          <button onClick={handleExportJSON} className="btn-primary">
+            {t('exportJSON')}
+          </button>
+
+          <select
+            value={importMode}
+            onChange={(e) => setImportMode(e.target.value)}
+            className="import-mode-select"
+            disabled={importing}
+          >
+            <option value="add">{t('importModeAdd', 'Add to existing data')}</option>
+            <option value="replace">{t('importModeReplace', 'Replace all existing data')}</option>
+          </select>
+
+          <button
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            className="btn-secondary"
+            disabled={importing}
+          >
+            {importing ? t('importing', 'Importing...') : t('importJSON', 'Import JSON')}
+          </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={handleImportFile}
+            style={{ display: 'none' }}
+          />
+        </div>
+
+        {importStatus && (
+          <div className={importStatus.type === 'error' ? 'error' : 'import-success'}>
+            {importStatus.text}
+          </div>
+        )}
       </div>
     </div>
   );

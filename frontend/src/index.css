@@ -244,14 +244,526 @@ body {
   padding: 1rem;
   background: white;
   border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .tree-style-select {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: 1rem;
 }
 
+/* Modern Tree View (XYFlow) */
+.modern-tree-view {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.person-node {
+  background: white;
+  border: 3px solid #3498db;
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.person-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
+
+.node-handle {
+  width: 10px;
+  height: 10px;
+  background: #3498db;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.person-node-content {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.person-node-photo {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e0e0;
+}
+
+.person-node-info {
+  flex: 1;
+}
+
+.person-node-name {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.person-node-lifespan {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8rem;
+  color: #7f8c8d;
+}
+
+.person-node-gender-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 0.5rem;
+}
+
+/* Traditional Tree View */
+.traditional-tree-view {
+  flex: 1;
+  padding: 2rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  overflow: auto;
+}
+
+.root-selector-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1.5rem;
+}
+
+.root-selector-container h3 {
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+.root-select {
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  min-width: 300px;
+  background: white;
+}
+
+.root-selector-inline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.tree-controls .root-selector-inline {
+  margin: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  gap: 0.5rem;
+}
+
+.tree-controls .root-select {
+  padding: 0.5rem;
+  font-size: 1rem;
+  min-width: 200px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.root-selector-inline label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.generation-tier {
+  margin-bottom: 3rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.generation-label {
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #3498db;
+}
+
+.generation-couples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.family-pod {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.pedigree-card {
+  background: white;
+  border: 2px solid #3498db;
+  border-radius: 10px;
+  padding: 1rem;
+  min-width: 160px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.pedigree-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  border-color: #2980b9;
+}
+
+.pedigree-photo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 0.5rem;
+  border: 2px solid #e0e0e0;
+}
+
+.pedigree-info h4 {
+  margin: 0.5rem 0 0.25rem 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.pedigree-lifespan {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+.spouse-connector {
+  width: 40px;
+  height: 3px;
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  border-radius: 2px;
+}
+
+.children-connector {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(180deg, #3498db, #2980b9);
+}
+
+.generation-children-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.generation-children-line::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 30px;
+  background: linear-gradient(180deg, #3498db, #2980b9);
+}
+
+.family-pod {
+  position: relative;
+  padding-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.couple-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.unlinked-section {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 12px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #7f8c8d;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #2c3e50;
+}
+
+.person-details {
+  text-align: center;
+}
+
+.modal-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1.5rem;
+  border: 4px solid #3498db;
+}
+
+.person-details h2 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+}
+
+.modal-info {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.modal-info p {
+  margin: 0.75rem 0;
+  color: #34495e;
+  line-height: 1.6;
+}
+
+.modal-info strong {
+  color: #2c3e50;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+/* Family Tree Structure Styles */
+.family-tree-structure {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4rem;
+  padding: 2rem;
+  width: max-content;
+  min-width: 100%;
+}
+
+.family-node-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.couple-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: relative;
+}
+
+.children-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.children-connector-line {
+  width: 2px;
+  height: 30px;
+  background: var(--union-color, #3498db);
+}
+
+.children-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.children-container > .family-node-wrapper {
+  position: relative;
+  padding: 30px 1rem 0;
+}
+
+.children-container > .family-node-wrapper::before,
+.children-container > .family-node-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper::before {
+  border-right: 2px solid var(--union-color, #3498db);
+}
+
+.children-container > .family-node-wrapper:only-child {
+  padding-top: 0;
+}
+
+.children-container > .family-node-wrapper:only-child::before,
+.children-container > .family-node-wrapper:only-child::after {
+  display: none;
+}
+
+.children-container > .family-node-wrapper:first-child::before,
+.children-container > .family-node-wrapper:last-child::after {
+  border: 0 none;
+}
+
+/* Person with several partners: cards and links share one grid */
+.family-grid {
+  display: grid;
+  align-items: center;
+}
+
+.link-cell {
+  position: relative;
+  align-self: stretch;
+  min-width: 48px;
+}
+
+.link-horizontal {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  background: var(--link-color, #e74c3c);
+  border-radius: 2px;
+}
+
+.link-vertical {
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--union-color, #3498db);
+}
+
+.grid-children {
+  align-self: start;
+  justify-self: center;
+}
+
+/* Each child gets a horizontal bar segment + a vertical drop to its card */
+.children-container > .family-node-wrapper {
+  position: relative;
+  padding: 30px 1rem 0;
+}
+
+.children-container > .family-node-wrapper::before,
+.children-container > .family-node-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid #3498db;
+}
+
+.children-container > .family-node-wrapper::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid #3498db;
+}
+
+.children-container > .family-node-wrapper::before {
+  border-right: 2px solid #3498db;
+}
+
+.children-container > .family-node-wrapper:only-child {
+  padding-top: 0;
+}
+
+.children-container > .family-node-wrapper:only-child::before,
+.children-container > .family-node-wrapper:only-child::after {
+  display: none;
+}
+
+.children-container > .family-node-wrapper:first-child::before,
+.children-container > .family-node-wrapper:last-child::after {
+  border: 0 none;
+}
+
+/* Legacy styles for backward compatibility */
 .tree-container {
   flex: 1;
   overflow: auto;
