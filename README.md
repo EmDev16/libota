@@ -1,173 +1,180 @@
-# Libota - Family Tree Application
+# Libota
 
-Libota (meaning "family" in Lingala) is an interactive family tree application that allows you to create, manage, and visualize your family history.
+Libota is a full-stack family tree application built to help families record, explore, and manage relationships across generations. The project currently includes a protected React dashboard, a visual family tree, person management, relationship tracing, multilingual UI, and an admin panel for user and data management.
 
-## Features
+The app name comes from Lingala, where "libota" means "family".
 
-- **Family Tree Management**: Add, edit, and delete family members with photos, birth/death dates, and descriptions
-- **Interactive Visualization**: Zoom and pan through your family tree with multiple visualization styles
-- **Relationship Finder**: Discover relationships between any two family members
-- **Multi-language Support**: French, English, Lingala, and Dutch
-- **User Management**: Admin accounts for full control, member accounts for adding family members
-- **Data Export/Import**: JSON backup and restore functionality
-- **PDF Export**: Export your family tree or partial sections to PDF
-- **Image Storage**: Upload and store photos for each family member
+## Current features
 
-## Tech Stack
+- Family member creation, editing, and deletion
+- Photo uploads and basic profile data (birth date, death date, notes, etc.)
+- Interactive family tree views in both traditional and modern layouts
+- Relationship finder to check how two people are connected
+- Dashboard with quick navigation to key workflows
+- Admin-only controls for user creation and deletion
+- JSON backup/export and JSON import with add or replace modes
+- Multi-language support using i18n
+- Protected routes with login-based access control
 
-- **Backend**: Node.js, Express, MongoDB
-- **Frontend**: React, Vite, React Router
-- **Libraries**: 
-  - react-zoom-pan-pinch (tree visualization)
-  - react-i18next (internationalization)
-  - jspdf, html2canvas (PDF export)
-  - @xyflow/react (graph visualization)
+## Tech stack
+
+- Backend: Node.js, Express, MongoDB, Mongoose
+- Frontend: React, Vite, React Router
+- Visualization: React Flow, react-zoom-pan-pinch
+- Auth: JWT + bcrypt
+- File handling: Multer
+- PDF/HTML export tooling: jspdf and html2canvas
+- Internationalization: i18next
+
+## Project layout
+
+```bash
+libota/
+├── backend/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── utils/
+│   ├── .env.example (if added locally)
+│   ├── server.js
+│   ├── seed.js
+│   └── package.json
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── uploads/
+├── json-backups-until-production/
+├── README.md
+├── package.json
+└── .gitignore
+```
+
+## App flow
+
+The frontend currently includes these routes:
+
+- `/login` – sign in screen
+- `/dashboard` – overview with cards for core sections
+- `/tree` – family tree visualization
+- `/people` – list of registered people
+- `/people/new` – add a new family member
+- `/people/:id/edit` – update an existing person
+- `/relationship` – relationship lookup tool
+- `/admin` – admin-only management panel
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- MongoDB (local instance or MongoDB Atlas)
+- Node.js 18+
+- MongoDB running locally or via MongoDB Atlas
 - Git
 
-## Installation
+## Setup
 
 1. Clone the repository:
+
 ```bash
-git clone https://github.com/EmDev16/libota.git
+git clone <your-repo-url>
 cd libota
 ```
 
-2. Install dependencies:
+2. Install dependencies for both apps:
+
 ```bash
 npm run install:all
 ```
 
-3. Set up environment variables:
+3. Create the backend environment file:
 
-Create `backend/.env`:
-```env
+```bash
+# backend/.env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/libota
-JWT_SECRET=your_jwt_secret_change_this_in_production
+JWT_SECRET=your_super_secret_jwt_key
 NODE_ENV=development
 ```
 
-4. Seed admin users:
+4. Seed the database with starter admin accounts:
+
 ```bash
 npm run seed
 ```
 
-Default admin accounts:
-- Username: `admin`, Password: `LibotaAdmin2024!`
-- Username: `admin2`, Password: `LibotaAdmin2024!`
+Default seeded admin accounts:
 
-## Running the Application
+- Username: `admin` / Password: `LibotaAdmin2024!`
+- Username: `admin2` / Password: `LibotaAdmin2024!`
+
+## Run locally
 
 ### Backend
+
 ```bash
 cd backend
 npm start
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 npm run dev
 ```
 
-The application will be available at:
+Then open:
+
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000
 
-## Usage
+## Data and admin features
 
-1. **Login**: Use one of the admin accounts to log in
-2. **Add Family Members**: Navigate to "People" → "Add Person"
-3. **Build Your Tree**: Add relationships (parents, spouses, children) when creating/editing people
-4. **Visualize**: Go to "Family Tree" to see the interactive visualization
-5. **Find Relationships**: Use the "Relationship Finder" to discover connections between family members
-6. **Manage Users**: Admins can add new family member accounts in the Admin Panel
-7. **Export**: Use the Admin Panel to export your data as JSON backup
+This project currently supports:
 
-## Project Structure
+- creating users in the admin panel
+- deleting users from the admin panel
+- exporting your family data as a JSON backup
+- importing JSON family data in add or replace mode
+- viewing a protected dashboard for logged-in users
 
-```
-libota/
-├── backend/
-│   ├── models/          # MongoDB models
-│   ├── routes/          # API routes
-│   ├── middleware/      # Authentication middleware
-│   ├── server.js        # Express server
-│   ├── seed.js          # Database seeding
-│   └── .env             # Environment variables
-├── frontend/
-│   ├── src/
-│   │   ├── pages/       # React page components
-│   │   ├── components/  # Reusable components
-│   │   ├── contexts/    # React contexts
-│   │   ├── api.js       # API client
-│   │   ├── i18n.js      # Internationalization
-│   │   └── App.jsx      # Main app component
-│   └── .env             # Environment variables
-├── uploads/             # Image storage
-└── README.md
-```
-
-## API Endpoints
+## Main API areas
 
 ### Authentication
-- `POST /api/auth/login` - Login
-- `POST /api/auth/register` - Register new user (admin only)
-- `GET /api/auth/me` - Get current user
-- `GET /api/auth/users` - Get all users (admin only)
-- `DELETE /api/auth/users/:id` - Delete user (admin only)
+
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `GET /api/auth/me`
+- `GET /api/auth/users`
+- `DELETE /api/auth/users/:id`
 
 ### People
-- `GET /api/person` - Get all people
-- `GET /api/person/:id` - Get single person
-- `POST /api/person` - Create person
-- `PUT /api/person/:id` - Update person
-- `DELETE /api/person/:id` - Delete person (admin only)
+
+- `GET /api/person`
+- `GET /api/person/:id`
+- `POST /api/person`
+- `PUT /api/person/:id`
+- `DELETE /api/person/:id`
 
 ### Tree
-- `GET /api/tree/complete` - Get complete tree data
-- `GET /api/tree/from/:id` - Get tree from specific person
-- `GET /api/tree/relationship/:id1/:id2` - Find relationship between two people
-- `GET /api/tree/filter/:type` - Filter by relationship type
 
-### Export
-- `GET /api/export/json` - Export all data as JSON (admin only)
-- `POST /api/export/json` - Import data from JSON (admin only)
+- `GET /api/tree/complete`
+- `GET /api/tree/from/:id`
+- `GET /api/tree/relationship/:id1/:id2`
 
-## Deployment
+### Export/import
 
-### Free Hosting Options
+- `GET /api/export/json`
+- `POST /api/export/json`
 
-The application can be deployed to free tiers of:
+## Notes for current development
 
-1. **Render** (recommended)
-   - Backend: Render (Node.js)
-   - Database: MongoDB Atlas (free tier)
-   - Frontend: Vercel or Netlify
-
-2. **Railway**
-   - Full stack deployment with MongoDB
-
-3. **Heroku** (limited free tier)
-   - Backend: Heroku
-   - Database: MongoDB Atlas
-   - Frontend: Vercel
-
-See deployment guide in the project documentation for detailed instructions.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+This repo is in active project mode and is being iterated around a real family-data workflow. The current implementation already includes the main user-facing pieces for managing a family tree, but you may still see ongoing improvements around data modeling, import handling, and UX polish.
 
 ## License
 
 ISC
 
-## Support
+## Contributing
 
-For issues and questions, please open an issue on GitHub.
+Pull requests and improvements are welcome. If you are extending the app, keep the existing admin/auth flow and family data conventions in mind when adding new features.
