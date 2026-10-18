@@ -396,6 +396,10 @@ export function calculateXYFlowLayout(people, levels) {
   return { nodes, edges };
 }
 
+// ---------------------------------------------------------------------------
+// Modern view: tidy tree layout for @xyflow/react
+// ---------------------------------------------------------------------------
+
 // Colors used to tell the partnerships of one person apart (also used by the traditional view)
 export const LINK_COLORS = ['#e74c3c', '#8e44ad', '#16a085', '#f39c12'];
 
@@ -409,6 +413,9 @@ const M = {
   ROOT_GAP: 140,     // space between separate families
   DOT: 14            // size of the union dot
 };
+
+// Card size and dot size, also used by the PDF export
+export const MODERN_SIZES = M;
 
 /**
  * Turn the family tree into positioned nodes and edges.
