@@ -396,6 +396,183 @@ export function calculateXYFlowLayout(people, levels) {
   return { nodes, edges };
 }
 
+// Colors used to tell the partnerships of one person apart (also used by the traditional view)
+export const LINK_COLORS = ['#e74c3c', '#8e44ad', '#16a085', '#f39c12'];
+
+const M = {
+  NODE_W: 200,       // width of a person card (PersonNode uses the same width)
+  NODE_H: 96,        // height of a person card
+  PARTNER_GAP: 80,   // free space between two partners; the union dot sits here
+  SIBLING_GAP: 40,
+  GROUP_GAP: 80,     // space between the children groups of different partnerships
+  ROW_GAP: 110,      // vertical space between generations
+  ROOT_GAP: 140,     // space between separate families
+  DOT: 14            // size of the union dot
+};
+
+/**
+ * Turn the family tree into positioned nodes and edges.
+ * - children are centered under their parents
+ * - every partnership gets a small "union" dot between the two partners; the children hang from it
+ * - people without any links are placed in a row at the bottom
+ */
+export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel = 'Unlinked Members') {
+  const nodes = [];
+  const edges = [];
+  const info = new Map();
+
+  // Children of a node, grouped per partnership (linkIndex -1 = children of a single person)
+  const groupsOf = node => {
+    const raw =
+      node.links.length > 0
+        ? node.links.map((l, i) => ({ linkIndex: i, kids: l.children }))
+        : [{ linkIndex: -1, kids: node.children }];
+    return raw.filter(g => g.kids.length > 0);
+  };
+
+  const unionId = (node, i) => `union-${node.couple[i]._id}-${node.couple[i + 1]._id}`;
+
+  // Pass 1: how wide is every family (its own row, or all of its descendants if wider)
+  const measure = node => {
+    const groups = groupsOf(node);
+    const groupWidths = groups.map(
+      g => g.kids.reduce((sum, kid) => sum + measure(kid), 0) + (g.kids.length - 1) * M.SIBLING_GAP
+    );
+    const childrenWidth =
+      groupWidths.reduce((a, b) => a + b, 0) + Math.max(groups.length - 1, 0) * M.GROUP_GAP;
+    const rowMin = M.NODE_W + (node.couple.length - 1) * (M.NODE_W + M.PARTNER_GAP);
+    info.set(node, { width: Math.max(rowMin, childrenWidth), childrenWidth, groups });
+    return info.get(node).width;
+  };
+
+  // Pass 2: place the row, then the children under it
+  const place = (node, left, top) => {
+    const { width, childrenWidth, groups } = info.get(node);
+    const n = node.couple.length;
+
+    // Partners sit next to each other; a person with several partnerships is spread out
+    const minPitch = M.NODE_W + M.PARTNER_GAP;
+    const pitch =
+      n > 2 ? Math.min(Math.max((width - M.NODE_W) / (n - 1), minPitch), minPitch * 2.5) : minPitch;
+    const rowLeft = left + (width - (M.NODE_W + (n - 1) * pitch)) / 2;
+
+    node.couple.forEach((person, i) => {
+      nodes.push({
+        id: person._id,
+        type: 'personNode',
+        position: { x: rowLeft + i * pitch, y: top },
+        data: { person, level: node.level }
+      });
+    });
+
+    const colorOf = i => (node.links.length > 1 ? LINK_COLORS[i % LINK_COLORS.length] : null);
+
+    // One union dot per partnership, joined to both partners
+    for (let i = 0; i < n - 1; i++) {
+      const color = colorOf(i) || '#e74c3c';
+      const id = unionId(node, i);
+      nodes.push({
+        id,
+        type: 'unionNode',
+        position: {
+          x: rowLeft + i * pitch + M.NODE_W + (pitch - M.NODE_W) / 2 - M.DOT / 2,
+          y: top + M.NODE_H / 2 - M.DOT / 2
+        },
+        data: { color },
+        draggable: false,
+        selectable: false
+      });
+      edges.push({
+        id: `${id}-left`,
+        source: node.couple[i]._id,
+        sourceHandle: 'right-source',
+        target: id,
+        targetHandle: 'left',
+        type: 'straight',
+        style: { stroke: color, strokeWidth: 3 }
+      });
+      edges.push({
+        id: `${id}-right`,
+        source: node.couple[i + 1]._id,
+        sourceHandle: 'left-source',
+        target: id,
+        targetHandle: 'right',
+        type: 'straight',
+        style: { stroke: color, strokeWidth: 3 }
+      });
+    }
+
+    // Children, centered under the row, oldest first (already sorted by buildFamilyTree)
+    const childTop = top + M.NODE_H + M.ROW_GAP;
+    let cursor = left + (width - childrenWidth) / 2;
+
+    groups.forEach(({ linkIndex, kids }) => {
+      const color = (linkIndex >= 0 && colorOf(linkIndex)) || '#3498db';
+      const parentIds =
+        linkIndex === -1
+          ? [node.couple[0]._id]
+          : [node.couple[linkIndex]._id, node.couple[linkIndex + 1]._id];
+      const sourceId = linkIndex === -1 ? node.couple[0]._id : unionId(node, linkIndex);
+
+      kids.forEach(kid => {
+        place(kid, cursor, childTop);
+        cursor += info.get(kid).width + M.SIBLING_GAP;
+
+        // The edge goes to the child who is actually a child of these parents,
+        // not to the child's partner
+        const kidPerson =
+          kid.couple.find(p => (p.parents || []).some(pid => parentIds.includes(pid))) ||
+          kid.couple[0];
+
+        edges.push({
+          id: `child-${sourceId}-${kidPerson._id}`,
+          source: sourceId,
+          sourceHandle: 'bottom',
+          target: kidPerson._id,
+          targetHandle: 'top',
+          type: 'smoothstep',
+          style: { stroke: color, strokeWidth: 2 }
+        });
+      });
+
+      cursor += M.GROUP_GAP - M.SIBLING_GAP;
+    });
+  };
+
+  let cursor = 0;
+  familyTree.forEach(root => {
+    measure(root);
+    place(root, cursor, 0);
+    cursor += info.get(root).width + M.ROOT_GAP;
+  });
+
+  // People without any links: one row below everything else
+  if (unlinked.length > 0) {
+    const bottom = nodes.reduce((max, n) => Math.max(max, n.position.y + M.NODE_H), 0);
+    const top = bottom + M.ROW_GAP * 2;
+
+    nodes.push({
+      id: 'unlinked-label',
+      type: 'labelNode',
+      position: { x: 0, y: top - 44 },
+      data: { label: unlinkedLabel },
+      draggable: false,
+      selectable: false
+    });
+
+    unlinked.forEach((person, i) => {
+      nodes.push({
+        id: person._id,
+        type: 'personNode',
+        position: { x: i * (M.NODE_W + M.SIBLING_GAP), y: top },
+        data: { person, level: 0 }
+      });
+    });
+  }
+
+  return { nodes, edges };
+}
+
 /**
  * Get generation label relative to root person
  * rootLevel is the level of the selected root person
