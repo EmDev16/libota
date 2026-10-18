@@ -1093,3 +1093,122 @@ body {
   color: #7f8c8d;
   font-style: italic;
 }
+
+.person-node--deceased {
+  background: #f4f6f7;
+}
+
+.person-node--deceased .person-node-name {
+  color: #7f8c8d;
+}
+
+.modal-content.pdf-modal {
+  max-width: 640px;
+  text-align: left;
+}
+
+.pdf-modal h2 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+}
+
+.pdf-section {
+  margin-bottom: 1.25rem;
+}
+
+.pdf-section-title {
+  display: block;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
+.pdf-option {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.pdf-option.selected {
+  border-color: #3498db;
+  background: #ebf5fb;
+}
+
+.pdf-option small {
+  display: block;
+  color: #7f8c8d;
+}
+
+.pdf-part-settings {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.pdf-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pdf-presets button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.pdf-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.pdf-row > div {
+  flex: 1;
+  min-width: 180px;
+}
+
+.pdf-row label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: #2c3e50;
+}
+
+.pdf-row select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.pdf-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  cursor: pointer;
+}
+
+.pdf-summary {
+  color: #566573;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.pdf-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.pdf-actions .btn-primary {
+  width: auto;
+}
