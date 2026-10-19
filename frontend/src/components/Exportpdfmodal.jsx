@@ -237,8 +237,8 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
             <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} />
             <span>{t('pdfPhotos', 'Include photos (slower, bigger file)')}</span>
           </label>
-        
-       {/* 4. Unlinked Members */}  
+
+          {/* 4. Unlinked members */}
           {scope === 'all' && unlinkedCount > 0 && (
             <label className="pdf-check" style={{ marginTop: '0.5rem' }}>
               <input

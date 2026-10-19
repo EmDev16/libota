@@ -180,6 +180,11 @@ router.post('/json', adminAuth, async (req, res) => {
       mode
     });
   } catch (error) {
+    // A person that does not fit the Person model (for example no last name) is a problem
+    // with the file, not with the server. Nothing was inserted in that case.
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Import error:', error);
     res.status(500).json({ error: error.message });
   }
