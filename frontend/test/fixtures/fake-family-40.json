@@ -1,0 +1,614 @@
+{
+  "people": [
+    {
+      "_id": "p40",
+      "firstName": "Victor",
+      "lastName": "Test",
+      "gender": "male",
+      "birthDate": "1975-05-25",
+      "description": "Not linked to anyone: tests the Unlinked section",
+      "parents": [],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p39",
+      "firstName": "Gabriel",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "2015-09-19",
+      "description": "Esther's son",
+      "parents": [
+        "p21"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p38",
+      "firstName": "Elie",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "2014-06-16",
+      "parents": [
+        "p20",
+        "p37"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p37",
+      "firstName": "Mireille",
+      "lastName": "Nsimba",
+      "gender": "female",
+      "birthDate": "1986-01-30",
+      "parents": [],
+      "children": [
+        "p38"
+      ],
+      "spouses": [
+        "p20"
+      ]
+    },
+    {
+      "_id": "p36",
+      "firstName": "Zoé",
+      "lastName": "Kalala",
+      "gender": "female",
+      "birthDate": "2012-12-24",
+      "parents": [
+        "p18",
+        "p35"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p35",
+      "firstName": "Olivier",
+      "lastName": "Kalala",
+      "gender": "male",
+      "birthDate": "1980-08-18",
+      "parents": [],
+      "children": [
+        "p36"
+      ],
+      "spouses": [
+        "p18"
+      ]
+    },
+    {
+      "_id": "p34",
+      "firstName": "Emma",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "2013-04-04",
+      "parents": [
+        "p15",
+        "p32"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p33",
+      "firstName": "Noah",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "2010-02-02",
+      "parents": [
+        "p15",
+        "p32"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p32",
+      "firstName": "Aline",
+      "lastName": "Tshimanga",
+      "gender": "female",
+      "birthDate": "1984-06-06",
+      "parents": [],
+      "children": [
+        "p33",
+        "p34"
+      ],
+      "spouses": [
+        "p15"
+      ]
+    },
+    {
+      "_id": "p31",
+      "firstName": "Isaac",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "2004-11-11",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p30",
+      "firstName": "Nina",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "2001-09-09",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p29",
+      "firstName": "Tom",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1999-07-07",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p28",
+      "firstName": "Léa",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1997-05-05",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p27",
+      "firstName": "Ruben",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1995-03-03",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p26",
+      "firstName": "Samuel",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1993-01-01",
+      "parents": [
+        "p07",
+        "p13"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p25",
+      "firstName": "Lydia",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1990-10-10",
+      "description": "Albertine's daughter",
+      "parents": [
+        "p06"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p24",
+      "firstName": "Ruth",
+      "lastName": "Mukendi",
+      "gender": "female",
+      "birthDate": "1992-02-20",
+      "description": "Child of Carine and Marc",
+      "parents": [
+        "p10",
+        "p12"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p23",
+      "firstName": "Naomi",
+      "lastName": "Mbala",
+      "gender": "female",
+      "description": "No birth date: tests missing dates",
+      "parents": [
+        "p05",
+        "p11"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p22",
+      "firstName": "Joël",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1994-04-04",
+      "parents": [
+        "p05",
+        "p11"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p21",
+      "firstName": "Esther",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1987-07-17",
+      "description": "Single parent",
+      "parents": [
+        "p05",
+        "p10"
+      ],
+      "children": [
+        "p39"
+      ],
+      "spouses": []
+    },
+    {
+      "_id": "p20",
+      "firstName": "David",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1984-12-12",
+      "parents": [
+        "p05",
+        "p10"
+      ],
+      "children": [
+        "p38"
+      ],
+      "spouses": [
+        "p37"
+      ]
+    },
+    {
+      "_id": "p19",
+      "firstName": "Emmanuel",
+      "lastName": "Lukusa",
+      "gender": "male",
+      "birthDate": "1986-09-09",
+      "parents": [
+        "p04",
+        "p09"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p18",
+      "firstName": "Grace",
+      "lastName": "Lukusa",
+      "gender": "female",
+      "birthDate": "1983-03-23",
+      "parents": [
+        "p04",
+        "p09"
+      ],
+      "children": [
+        "p36"
+      ],
+      "spouses": [
+        "p35"
+      ]
+    },
+    {
+      "_id": "p17",
+      "firstName": "Michel",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1988-01-19",
+      "parents": [
+        "p03",
+        "p08"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p16",
+      "firstName": "Sarah",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1985-08-08",
+      "parents": [
+        "p03",
+        "p08"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p15",
+      "firstName": "Patrick",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1982-05-05",
+      "parents": [
+        "p03",
+        "p08"
+      ],
+      "children": [
+        "p33",
+        "p34"
+      ],
+      "spouses": [
+        "p32"
+      ]
+    },
+    {
+      "_id": "p14",
+      "firstName": "Cécile",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1990-03-15",
+      "parents": [
+        "p03",
+        "p08"
+      ],
+      "children": [],
+      "spouses": []
+    },
+    {
+      "_id": "p13",
+      "firstName": "Hélène",
+      "lastName": "Mwamba",
+      "gender": "female",
+      "birthDate": "1970-11-11",
+      "parents": [],
+      "children": [
+        "p26",
+        "p27",
+        "p28",
+        "p29",
+        "p30",
+        "p31"
+      ],
+      "spouses": [
+        "p07"
+      ]
+    },
+    {
+      "_id": "p12",
+      "firstName": "Marc",
+      "lastName": "Mukendi",
+      "gender": "male",
+      "birthDate": "1960-06-21",
+      "description": "Carine's second husband",
+      "parents": [],
+      "children": [
+        "p24"
+      ],
+      "spouses": [
+        "p10"
+      ]
+    },
+    {
+      "_id": "p11",
+      "firstName": "Rose",
+      "lastName": "Banza",
+      "gender": "female",
+      "birthDate": "1968-03-09",
+      "description": "Jean's second wife",
+      "parents": [],
+      "children": [
+        "p22",
+        "p23"
+      ],
+      "spouses": [
+        "p05"
+      ]
+    },
+    {
+      "_id": "p10",
+      "firstName": "Carine",
+      "lastName": "Ngoy",
+      "gender": "female",
+      "birthDate": "1962-10-30",
+      "description": "Jean's first wife, later remarried: tests the chain",
+      "parents": [],
+      "children": [
+        "p20",
+        "p21",
+        "p24"
+      ],
+      "spouses": [
+        "p05",
+        "p12"
+      ]
+    },
+    {
+      "_id": "p09",
+      "firstName": "Antoine",
+      "lastName": "Lukusa",
+      "gender": "male",
+      "birthDate": "1955-07-07",
+      "deathDate": "2020-02-02",
+      "parents": [],
+      "children": [
+        "p18",
+        "p19"
+      ],
+      "spouses": [
+        "p04"
+      ]
+    },
+    {
+      "_id": "p08",
+      "firstName": "Léonie",
+      "lastName": "Kasongo",
+      "gender": "female",
+      "birthDate": "1959-04-18",
+      "parents": [],
+      "children": [
+        "p14",
+        "p15",
+        "p16",
+        "p17"
+      ],
+      "spouses": [
+        "p03"
+      ]
+    },
+    {
+      "_id": "p07",
+      "firstName": "Daniel",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1966-12-01",
+      "description": "Six children: tests a wide sibling row",
+      "parents": [
+        "p01",
+        "p02"
+      ],
+      "children": [
+        "p26",
+        "p27",
+        "p28",
+        "p29",
+        "p30",
+        "p31"
+      ],
+      "spouses": [
+        "p13"
+      ]
+    },
+    {
+      "_id": "p06",
+      "firstName": "Albertine",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1963-02-14",
+      "description": "Single parent: child has only one parent listed",
+      "parents": [
+        "p01",
+        "p02"
+      ],
+      "children": [
+        "p25"
+      ],
+      "spouses": []
+    },
+    {
+      "_id": "p05",
+      "firstName": "Jean",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1960-09-27",
+      "description": "Married twice: tests two partners",
+      "parents": [
+        "p01",
+        "p02"
+      ],
+      "children": [
+        "p20",
+        "p21",
+        "p22",
+        "p23"
+      ],
+      "spouses": [
+        "p10",
+        "p11"
+      ]
+    },
+    {
+      "_id": "p04",
+      "firstName": "Thérèse",
+      "lastName": "Mbala",
+      "gender": "female",
+      "birthDate": "1958-05-03",
+      "parents": [
+        "p01",
+        "p02"
+      ],
+      "children": [
+        "p18",
+        "p19"
+      ],
+      "spouses": [
+        "p09"
+      ]
+    },
+    {
+      "_id": "p03",
+      "firstName": "Pierre",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1956-01-10",
+      "parents": [
+        "p01",
+        "p02"
+      ],
+      "children": [
+        "p14",
+        "p15",
+        "p16",
+        "p17"
+      ],
+      "spouses": [
+        "p08"
+      ]
+    },
+    {
+      "_id": "p02",
+      "firstName": "Marie",
+      "lastName": "Ilunga",
+      "gender": "female",
+      "birthDate": "1935-08-20",
+      "deathDate": "2016-11-15",
+      "description": "Family matriarch (test data)",
+      "parents": [],
+      "children": [
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07"
+      ],
+      "spouses": [
+        "p01"
+      ]
+    },
+    {
+      "_id": "p01",
+      "firstName": "Joseph",
+      "lastName": "Mbala",
+      "gender": "male",
+      "birthDate": "1931-03-12",
+      "deathDate": "2009-06-01",
+      "description": "Family patriarch (test data)",
+      "parents": [],
+      "children": [
+        "p03",
+        "p04",
+        "p05",
+        "p06",
+        "p07"
+      ],
+      "spouses": [
+        "p02"
+      ]
+    }
+  ]
+}
