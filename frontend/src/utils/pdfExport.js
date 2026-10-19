@@ -498,7 +498,8 @@ async function loadPhotos(people) {
  *   scope: 'all' | 'part', rootPersonId, up, down (number or Infinity),
  *   pageMode: 'fit' | 'tiles' | 'branches',
  *   paper: 'a4' | 'a3', orientation: 'auto' | 'landscape' | 'portrait',
- *   photos: boolean
+ *   photos: boolean,
+ *   includeUnlinked: boolean (complete tree only; people without any family links)
  * }
  * `people` must already be normalized (normalizeRelationships).
  */
@@ -510,7 +511,8 @@ export async function planFamilyPdf(people, options) {
     down = Infinity,
     pageMode = 'fit',
     paper = 'a4',
-    orientation = 'auto'
+    orientation = 'auto',
+    includeUnlinked = false
   } = options;
 
   // 1. Who is included
@@ -523,12 +525,18 @@ export async function planFamilyPdf(people, options) {
   }
   if (subset.length === 0) throw new Error('There is nobody to export');
 
-  // 2. The tree. People without any links are only added for the complete tree.
-  const unlinked = scope === 'all' ? findUnlinkedPeople(subset) : [];
-  const unlinkedIds = new Set(unlinked.map((p) => p._id));
+  // 2. The tree. People without any links never belong to the tree itself; for the
+  //    complete tree they can be added as a separate row/page if asked for.
+  const allUnlinked = scope === 'all' ? findUnlinkedPeople(subset) : [];
+  const unlinkedIds = new Set(allUnlinked.map((p) => p._id));
   const linked = subset.filter((p) => !unlinkedIds.has(p._id));
+  const unlinked = includeUnlinked ? allUnlinked : [];
   const familyTree = linked.length > 0 ? calculateTraditionalLayout(linked, null) : [];
   const unlinkedLabel = 'Unlinked members';
+
+  if (familyTree.length === 0 && unlinked.length === 0) {
+    throw new Error('There is nobody to export');
+  }
 
   // 3. The pages
   const pages = [];
