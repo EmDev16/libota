@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { findUnlinkedPeople } from '../utils/treeLayout';
 import { getPeopleForExport, generateFamilyPdf } from '../utils/pdfExport';
 
 const UP_LABELS = [
@@ -60,6 +61,7 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
   const [paper, setPaper] = useState('a4');
   const [orientation, setOrientation] = useState('auto');
   const [photos, setPhotos] = useState(false);
+  const [includeUnlinked, setIncludeUnlinked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -73,12 +75,14 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
 
   const downValue = down === 'all' ? Infinity : Number(down);
 
+  const unlinkedCount = useMemo(() => findUnlinkedPeople(people).length, [people]);
+
   // How many people end up in the PDF
   const count = useMemo(() => {
-    if (scope === 'all') return people.length;
+    if (scope === 'all') return people.length - (includeUnlinked ? 0 : unlinkedCount);
     if (!rootId) return 0;
     return getPeopleForExport(people, { rootPersonId: rootId, up, down: downValue }).length;
-  }, [people, scope, rootId, up, downValue]);
+  }, [people, scope, rootId, up, downValue, includeUnlinked, unlinkedCount]);
 
   const canCreate = !busy && count > 0 && (scope === 'all' || rootId);
 
@@ -94,7 +98,8 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
         pageMode,
         paper,
         orientation,
-        photos
+        photos,
+        includeUnlinked
       });
       onClose();
     } catch (err) {
@@ -232,6 +237,20 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
             <input type="checkbox" checked={photos} onChange={(e) => setPhotos(e.target.checked)} />
             <span>{t('pdfPhotos', 'Include photos (slower, bigger file)')}</span>
           </label>
+        
+       {/* 4. Unlinked Members */}  
+          {scope === 'all' && unlinkedCount > 0 && (
+            <label className="pdf-check" style={{ marginTop: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={includeUnlinked}
+                onChange={(e) => setIncludeUnlinked(e.target.checked)}
+              />
+              <span>
+                {t('pdfUnlinked', 'Include unlinked members')} ({unlinkedCount})
+              </span>
+            </label>
+          )}
         </div>
 
         {error && <div className="error">{error}</div>}
