@@ -13,16 +13,33 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PersonNode from '../components/PersonNode';
+import { UnionNode, LabelNode } from '../components/TreeNodes';
 import {
   normalizeRelationships,
-  calculateGenerationalLevels,
-  calculateXYFlowLayout,
   calculateTraditionalLayout,
-  findUnlinkedPeople
+  calculateModernLayout,
+  findUnlinkedPeople,
+  LINK_COLORS
 } from '../utils/treeLayout';
 
 const nodeTypes = {
   personNode: PersonNode,
+  unionNode: UnionNode,
+  labelNode: LabelNode
+};
+
+const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
+
+// Shared by both views: the family tree for the whole family or for one selected person,
+// plus the people who have no links at all (shown separately)
+const buildTree = (people, rootPersonId) => {
+  const unlinked = findUnlinkedPeople(people);
+  const unlinkedIds = new Set(unlinked.map(p => p._id));
+  const linkedPeople = people.filter(p => !unlinkedIds.has(p._id));
+  return {
+    familyTree: calculateTraditionalLayout(linkedPeople, rootPersonId || null),
+    unlinked
+  };
 };
 
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
@@ -46,9 +63,6 @@ const PersonCard = ({ person, onClick }) => (
     </div>
   </div>
 );
-
-// Colors used to tell the partnerships of one person apart
-const LINK_COLORS = ['#e74c3c', '#8e44ad', '#16a085', '#f39c12'];
 
 // Children hanging under a couple (or under one link of a person with several partners)
 const ChildrenRow = ({ nodes, onPersonClick, color }) => (
@@ -151,6 +165,7 @@ const FamilyTree = () => {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [rootPersonId, setRootPersonId] = useState('');
+  const [fitKey, setFitKey] = useState(0); // bump to re-fit the modern view
 
   // XYFlow state for modern view
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -162,12 +177,16 @@ const FamilyTree = () => {
 
   useEffect(() => {
     if (people.length > 0 && treeStyle === 'modern') {
-      const levels = calculateGenerationalLevels(people);
-      const { nodes: flowNodes, edges: flowEdges } = calculateXYFlowLayout(people, levels);
+      const { familyTree, unlinked } = buildTree(people, rootPersonId);
+      const { nodes: flowNodes, edges: flowEdges } = calculateModernLayout(
+        familyTree,
+        rootPersonId ? [] : unlinked,
+        t('unlinkedMembers', 'Unlinked Members')
+      );
       setNodes(flowNodes);
       setEdges(flowEdges);
     }
-  }, [people, treeStyle, setNodes, setEdges]);
+  }, [people, treeStyle, rootPersonId, setNodes, setEdges, t]);
 
   const loadTree = async () => {
     try {
@@ -187,6 +206,7 @@ const FamilyTree = () => {
   };
 
   const handleNodeClick = useCallback((event, node) => {
+    if (node.type !== 'personNode') return; // dots and labels are not clickable
     setSelectedPerson(node.data.person);
     setShowModal(true);
   }, []);
@@ -208,7 +228,7 @@ const FamilyTree = () => {
         <option value="modern">{t('modern')}</option>
       </select>
 
-      {treeStyle === 'traditional' && people.length > 0 && (
+      {people.length > 0 && (
         <div className="root-selector-inline">
           <label>{t('viewFrom')}:</label>
           <select
@@ -227,7 +247,7 @@ const FamilyTree = () => {
       )}
 
       {treeStyle === 'modern' && (
-        <button className="btn-secondary" onClick={() => window.location.reload()}>
+        <button className="btn-secondary" onClick={() => setFitKey(k => k + 1)}>
           {t('resetZoom')}
         </button>
       )}
@@ -252,18 +272,33 @@ const FamilyTree = () => {
       return (
         <div className="modern-tree-view">
           <ReactFlow
+            // new key = the view is re-fitted (tree changed, or "reset" was clicked)
+            key={`${rootPersonId || 'all'}-${fitKey}-${nodes.length}`}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
+            nodesConnectable={false}
+            minZoom={0.1}
+            maxZoom={2}
             fitView
+            fitViewOptions={{ padding: 0.15 }}
             attributionPosition="bottom-left"
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            <Controls />
-            <MiniMap nodeStrokeWidth={3} zoomable pannable />
+            <Controls showInteractive={false} />
+            <MiniMap
+              nodeStrokeWidth={3}
+              nodeColor={(n) =>
+                n.type === 'personNode'
+                  ? GENDER_COLORS[n.data.person.gender] || GENDER_COLORS.other
+                  : 'transparent'
+              }
+              zoomable
+              pannable
+            />
           </ReactFlow>
         </div>
       );
@@ -275,11 +310,7 @@ const FamilyTree = () => {
 
   const renderTraditionalView = () => {
     try {
-      // People with no links at all are shown in their own section, not as lone roots
-      const unlinked = findUnlinkedPeople(people);
-      const unlinkedIds = new Set(unlinked.map(p => p._id));
-      const linkedPeople = people.filter(p => !unlinkedIds.has(p._id));
-      const familyTree = calculateTraditionalLayout(linkedPeople, rootPersonId || null);
+      const { familyTree, unlinked } = buildTree(people, rootPersonId);
 
       return (
         <div className="traditional-tree-view">
