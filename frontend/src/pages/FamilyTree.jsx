@@ -14,6 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import PersonNode from '../components/PersonNode';
 import { UnionNode, LabelNode } from '../components/TreeNodes';
+import ExportPdfModal from '../components/ExportPdfModal';
 import {
   normalizeRelationships,
   calculateTraditionalLayout,
@@ -166,6 +167,7 @@ const FamilyTree = () => {
   const [showModal, setShowModal] = useState(false);
   const [rootPersonId, setRootPersonId] = useState('');
   const [fitKey, setFitKey] = useState(0); // bump to re-fit the modern view
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // XYFlow state for modern view
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -244,6 +246,12 @@ const FamilyTree = () => {
             ))}
           </select>
         </div>
+      )}
+
+      {people.length > 0 && (
+        <button className="btn-secondary" onClick={() => setShowPdfModal(true)}>
+          {t('exportPdf', 'Export PDF')}
+        </button>
       )}
 
       {treeStyle === 'modern' && (
@@ -354,6 +362,15 @@ const FamilyTree = () => {
             {renderTraditionalView()}
           </TransformComponent>
         </TransformWrapper>
+      )}
+
+      {/* PDF export */}
+      {showPdfModal && (
+        <ExportPdfModal
+          people={people}
+          initialRootId={rootPersonId}
+          onClose={() => setShowPdfModal(false)}
+        />
       )}
 
       {/* Person Details Modal */}
