@@ -11,8 +11,14 @@ const exportRoutes = require('./routes/export');
 
 const app = express();
 
+// CORS_ORIGIN (comma separated) limits which websites may call the API.
+// Without it every origin is allowed, which is fine for development.
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : null;
+
 // Middleware
-app.use(cors());
+app.use(cors(allowedOrigins && allowedOrigins.length > 0 ? { origin: allowedOrigins } : undefined));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -25,7 +31,7 @@ app.use('/api/person', personRoutes);
 app.use('/api/tree', treeRoutes);
 app.use('/api/export', exportRoutes);
 
-// Health check
+// Health check (also used by the hosting platform to see that the server is alive)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
