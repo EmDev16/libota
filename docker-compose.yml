@@ -1,0 +1,43 @@
+# Runs the whole app on your computer, like it will run online:
+#   docker compose up --build
+# Website: http://localhost:8080    API: http://localhost:5001/api/health
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build: ./backend
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/libota
+      # Put JWT_SECRET in a .env file next to this file (see .env.example)
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file next to docker-compose.yml}
+      CORS_ORIGIN: http://localhost:8080
+      PORT: 5001
+    ports:
+      - "5001:5001"
+    volumes:
+      - uploads:/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5001/api
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  uploads:
