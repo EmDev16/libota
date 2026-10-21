@@ -8,7 +8,7 @@
  *             between cards where possible
  *   branches  one page per branch (every child of the top families), plus one page for the rest
  */
-import { IMAGE_BASE_URL } from '../api';
+import { photoUrl } from './photo';
 import {
   calculateTraditionalLayout,
   calculateModernLayout,
@@ -481,7 +481,7 @@ async function loadPhotos(people) {
   for (let i = 0; i < withPhoto.length; i += 8) {
     await Promise.all(
       withPhoto.slice(i, i + 8).map(async (p) => {
-        const data = await loadPhoto(`${IMAGE_BASE_URL}${p.photo}`);
+        const data = await loadPhoto(photoUrl(p.photo));
         if (data) photos.set(p._id, data);
       })
     );

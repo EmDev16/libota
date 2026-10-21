@@ -2,12 +2,12 @@
 // so tests can load it. server.js does the connecting and listening.
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const personRoutes = require('./routes/person');
 const treeRoutes = require('./routes/tree');
 const exportRoutes = require('./routes/export');
+const { getUploadDir } = require('./utils/photoStorage');
 
 const app = express();
 
@@ -22,8 +22,8 @@ app.use(cors(allowedOrigins && allowedOrigins.length > 0 ? { origin: allowedOrig
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Photos that are stored on disk (photos on Cloudinary are served by Cloudinary)
+app.use('/uploads', express.static(getUploadDir()));
 
 // Routes
 app.use('/api/auth', authRoutes);

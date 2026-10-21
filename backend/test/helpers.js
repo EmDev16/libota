@@ -4,6 +4,15 @@
 // Must be set before the app handles requests
 process.env.JWT_SECRET = 'test-secret';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+// Photos go to a temporary folder, and never to Cloudinary, whatever is in your environment
+const uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'libota-uploads-'));
+process.env.UPLOADS_DIR = uploadsDir;
+delete process.env.CLOUDINARY_URL;
+
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const { MongoMemoryServer } = require('mongodb-memory-server');
@@ -20,10 +29,12 @@ async function startDb() {
 async function stopDb() {
   await mongoose.disconnect();
   if (mongod) await mongod.stop();
+  fs.rmSync(uploadsDir, { recursive: true, force: true });
 }
 
 async function clearDb() {
   await Promise.all([User.deleteMany({}), Person.deleteMany({})]);
+  for (const name of fs.readdirSync(uploadsDir)) fs.unlinkSync(path.join(uploadsDir, name));
 }
 
 // The password is hashed by the User model, like for a real user
@@ -45,4 +56,4 @@ const createPerson = (createdBy, extra = {}) =>
     ...extra
   });
 
-module.exports = { startDb, stopDb, clearDb, createUser, createPerson, tokenFor };
+module.exports = { startDb, stopDb, clearDb, createUser, createPerson, tokenFor, uploadsDir };

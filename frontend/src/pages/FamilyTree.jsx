@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { treeAPI, IMAGE_BASE_URL } from '../api';
+import { treeAPI } from '../api';
+import { photoUrl } from '../utils/photo';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
   ReactFlow,
@@ -50,7 +51,7 @@ const PersonCard = ({ person, onClick }) => (
   <div className="pedigree-card" onClick={() => onClick(person)}>
     {person.photo && (
       <img
-        src={`${IMAGE_BASE_URL}${person.photo}`}
+        src={photoUrl(person.photo)}
         alt={`${person.firstName} ${person.lastName}`}
         className="pedigree-photo"
       />
@@ -381,7 +382,7 @@ const FamilyTree = () => {
             <div className="person-details">
               {selectedPerson.photo && (
                 <img
-                  src={`${IMAGE_BASE_URL}${selectedPerson.photo}`}
+                  src={photoUrl(selectedPerson.photo)}
                   alt={`${selectedPerson.firstName} ${selectedPerson.lastName}`}
                   className="modal-photo"
                 />
