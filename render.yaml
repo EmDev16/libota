@@ -1,0 +1,21 @@
+# Render Blueprint: describes the backend service so it can be created (and recreated) from the repo.
+# Render dashboard -> New -> Blueprint -> pick this repository.
+services:
+  - type: web
+    name: libota-api
+    runtime: docker
+    plan: free              
+    region: frankfurt       # closest to Brussels; choose the same region as your Atlas cluster if you can
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass   
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true         # Render makes a long random secret for you
+      - key: MONGODB_URI
+        sync: false                 # you type it in the dashboard (it is a secret)
+      - key: CLOUDINARY_URL
+        sync: false                 # same
+      - key: CORS_ORIGIN
+        sync: false                 # the address of your Vercel website, filled in later
