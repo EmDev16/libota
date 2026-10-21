@@ -1,29 +1,16 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const Person = require('../models/Person');
 const { auth, adminAuth } = require('../middleware/auth');
+const { savePhoto, removePhoto } = require('../utils/photoStorage');
 
 const router = express.Router();
 
-// Make sure the uploads folder exists (same location as before: <project root>/uploads)
-const uploadDir = path.join(__dirname, '../../uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Photos are read into memory and then stored by utils/photoStorage.js
+// (Cloudinary when CLOUDINARY_URL is set, otherwise the uploads folder).
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
@@ -66,6 +53,13 @@ const parseIds = (value) => {
 // Works whether auth middleware sets req.user._id or req.user.id
 const getUserId = (req) => req.user && (req.user._id || req.user.id);
 
+// Removes a photo, unless another person still uses it (an import can copy photo addresses)
+const releasePhoto = async (photo, personId) => {
+  if (!photo) return;
+  const stillUsed = await Person.exists({ photo, _id: { $ne: personId } });
+  if (!stillUsed) await removePhoto(photo);
+};
+
 // Get all people
 router.get('/', auth, async (req, res) => {
   try {
@@ -104,8 +98,15 @@ router.get('/:id', auth, async (req, res) => {
 
 // Create person (all authenticated users can add)
 router.post('/', auth, uploadPhoto, async (req, res) => {
+  let newPhoto = null;
+  let saved = false;
+
   try {
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses } = req.body;
+
+    if (req.file) {
+      newPhoto = await savePhoto(req.file);
+    }
 
     const person = new Person({
       firstName,
@@ -114,13 +115,14 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
       deathDate: deathDate ? new Date(deathDate) : null,
       gender: gender ? gender.toLowerCase() : gender,
       description: description || '',
-      photo: req.file ? `/uploads/${req.file.filename}` : null,
+      photo: newPhoto,
       parents: parseIds(parents),
       spouses: parseIds(spouses),
       createdBy: getUserId(req)
     });
 
     await person.save();
+    saved = true;
 
     // Update parents' children arrays
     if (person.parents && person.parents.length > 0) {
@@ -146,6 +148,12 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
 
     res.status(201).json(savedPerson);
   } catch (error) {
+    // Do not leave an uploaded photo behind for a person that was never saved
+    if (newPhoto && !saved) await removePhoto(newPhoto);
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Create person failed:', error);
     res.status(500).json({ error: error.message });
   }
@@ -153,6 +161,9 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
 
 // Update person (admin only, or creator if member)
 router.put('/:id', auth, uploadPhoto, async (req, res) => {
+  let newPhoto = null;
+  let saved = false;
+
   try {
     const person = await Person.findById(req.params.id);
 
@@ -160,7 +171,7 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
       return res.status(404).json({ error: 'Person not found' });
     }
 
-    // Check permissions
+    // Check permissions (before anything is stored)
     const currentUserId = String(getUserId(req));
     const creatorId = person.createdBy ? person.createdBy.toString() : '';
     if (req.user.role !== 'admin' && creatorId !== currentUserId) {
@@ -168,6 +179,10 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
     }
 
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses } = req.body;
+
+    if (req.file) {
+      newPhoto = await savePhoto(req.file);
+    }
 
     // Parents: compare as strings so ObjectIds and ids from the form match
     const oldParents = (person.parents || []).map(String);
@@ -204,11 +219,18 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
     person.parents = newParents;
     person.spouses = newSpouses;
 
-    if (req.file) {
-      person.photo = `/uploads/${req.file.filename}`;
+    const oldPhoto = person.photo;
+    if (newPhoto) {
+      person.photo = newPhoto;
     }
 
     await person.save();
+    saved = true;
+
+    // The photo that was replaced is no longer needed
+    if (newPhoto && oldPhoto) {
+      await releasePhoto(oldPhoto, person._id);
+    }
 
     const updatedPerson = await Person.findById(person._id)
       .populate('parents', 'firstName lastName')
@@ -218,6 +240,11 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
 
     res.json(updatedPerson);
   } catch (error) {
+    if (newPhoto && !saved) await removePhoto(newPhoto);
+
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Update person failed:', error);
     res.status(500).json({ error: error.message });
   }
@@ -257,6 +284,8 @@ router.delete('/:id', adminAuth, async (req, res) => {
     }
 
     await Person.findByIdAndDelete(req.params.id);
+    await releasePhoto(person.photo, person._id);
+
     res.json({ message: 'Person deleted successfully' });
   } catch (error) {
     console.error('Delete person failed:', error);

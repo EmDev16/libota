@@ -19,6 +19,7 @@ services:
       # Put JWT_SECRET in a .env file next to this file (see .env.example)
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in a .env file next to docker-compose.yml}
       CORS_ORIGIN: http://localhost:8080
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
       PORT: 5001
     ports:
       - "5001:5001"

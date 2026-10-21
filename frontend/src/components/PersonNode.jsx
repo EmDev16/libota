@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { IMAGE_BASE_URL } from '../api';
+import { photoUrl } from '../utils/photo';
 
 // The handles are only anchor points for the lines, so they are invisible
 const hidden = { opacity: 0, pointerEvents: 'none' };
@@ -36,7 +36,7 @@ const PersonNode = ({ data }) => {
       <div className="person-node-content" style={{ minWidth: 0, width: '100%' }}>
         {person.photo && (
           <img
-            src={`${IMAGE_BASE_URL}${person.photo}`}
+            src={photoUrl(person.photo)}
             alt={`${person.firstName} ${person.lastName}`}
             className="person-node-photo"
           />
