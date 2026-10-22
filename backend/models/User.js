@@ -22,6 +22,11 @@ const userSchema = new mongoose.Schema({
     enum: ['fr', 'en', 'ln', 'nl'],
     default: 'en'
   },
+  // Whether this account sees the family statistics on the dashboard (admins always do)
+  showStats: {
+    type: Boolean,
+    default: false
+  },
   // Set when the password changes; tokens made before this moment stop working
   passwordChangedAt: {
     type: Date,

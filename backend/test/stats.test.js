@@ -217,3 +217,49 @@ describe('GET /api/person/stats', () => {
     assert.match(res.body.today, /^\d{4}-\d{2}-\d{2}$/);
   });
 });
+
+describe('statistics switch for an account', () => {
+  const { startDb, stopDb, clearDb, createUser, tokenFor } = require('./helpers');
+  const app = require('../app');
+  const User = require('../models/User');
+  let admin;
+  let member;
+
+  before(startDb);
+  after(stopDb);
+  beforeEach(async () => {
+    await clearDb();
+    admin = await createUser('boss', 'admin');
+    member = await createUser('maria', 'member');
+  });
+
+  const put = (token, id, body) =>
+    request(app).put(`/api/auth/users/${id}/stats`).set('Authorization', `Bearer ${token}`).send(body);
+
+  it('is off for a new member account and shown by /me', async () => {
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${tokenFor(member)}`);
+    assert.equal(me.body.showStats, false);
+    const meAdmin = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${tokenFor(admin)}`);
+    assert.equal(meAdmin.body.showStats, true);
+  });
+
+  it('can be switched by an admin only', async () => {
+    assert.equal((await put(tokenFor(member), member._id, { showStats: true })).status, 403);
+    const res = await put(tokenFor(admin), member._id, { showStats: true });
+    assert.equal(res.status, 200);
+    assert.equal((await User.findById(member._id)).showStats, true);
+  });
+
+  it('refuses anything but true or false', async () => {
+    assert.equal((await put(tokenFor(admin), member._id, { showStats: 'yes' })).status, 400);
+  });
+
+  it('can be set when an admin creates an account', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .set('Authorization', `Bearer ${tokenFor(admin)}`)
+      .send({ username: 'paul', password: 'Secret123', role: 'member', showStats: true });
+    assert.equal(res.status, 201);
+    assert.equal((await User.findOne({ username: 'paul' })).showStats, true);
+  });
+});

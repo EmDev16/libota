@@ -26,7 +26,8 @@ const publicUser = (user) => ({
   id: user._id,
   username: user.username,
   role: user.role,
-  language: user.language
+  language: user.language,
+  showStats: user.role === 'admin' || user.showStats === true
 });
 
 // The details stay in the server log; the browser only gets a general message
@@ -38,7 +39,7 @@ const serverError = (res, error) => {
 // Register new user (admin only)
 router.post('/register', adminAuth, async (req, res) => {
   try {
-    const { username, password, role, language } = req.body;
+    const { username, password, role, language, showStats } = req.body;
 
     // Only plain text is accepted: an object such as { "$gt": "" } must never reach the database query
     if (!isText(username) || !username.trim()) {
@@ -61,7 +62,8 @@ router.post('/register', adminAuth, async (req, res) => {
       username: username.trim(),
       password,
       role: role || 'member',
-      language: LANGUAGES.includes(language) ? language : 'en'
+      language: LANGUAGES.includes(language) ? language : 'en',
+      showStats: showStats === true
     });
 
     await user.save();
@@ -111,7 +113,8 @@ router.get('/me', auth, (req, res) => {
     id: req.user._id,
     username: req.user.username,
     role: req.user.role,
-    language: req.user.language
+    language: req.user.language,
+    showStats: req.user.role === 'admin' || req.user.showStats === true
   });
 });
 
@@ -182,6 +185,27 @@ router.put('/users/:id/password', adminAuth, async (req, res) => {
     res.json({ message: 'Password reset' });
   } catch (error) {
     // An id that is not an ObjectId fails here as well
+    if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
+    serverError(res, error);
+  }
+});
+
+// Choose whether an account sees the family statistics (admin only)
+router.put('/users/:id/stats', adminAuth, async (req, res) => {
+  try {
+    if (typeof req.body.showStats !== 'boolean') {
+      return res.status(400).json({ error: 'showStats must be true or false' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { showStats: req.body.showStats },
+      { new: true }
+    ).select('-password -passwordChangedAt');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
     if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
     serverError(res, error);
   }

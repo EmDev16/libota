@@ -99,6 +99,10 @@ router.get('/', auth, async (req, res) => {
 // The browser sends its own date (?today=2026-10-22) so birthdays follow the family's time zone.
 router.get('/stats', auth, async (req, res) => {
   try {
+    // Statistics show the whole family, so an account only gets them when an admin allowed it
+    if (req.user.role !== 'admin' && req.user.showStats !== true) {
+      return res.status(403).json({ error: 'Statistics are not available for this account' });
+    }
     const people = await Person.find().select(
       'firstName lastName birthDate deathDate parents spouses createdAt'
     );
