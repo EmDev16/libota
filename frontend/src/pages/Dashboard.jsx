@@ -98,7 +98,10 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [failed, setFailed] = useState(false);
 
+  const canSeeStats = isAdmin || !!user?.showStats; // admins always, members when an admin allowed it
+
   useEffect(() => {
+    if (!canSeeStats) return undefined;
     let cancelled = false;
     personAPI
       .getStats(localToday())
@@ -107,7 +110,7 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canSeeStats]);
 
   const when = (daysAway) => {
     if (daysAway === 0) return t('today', 'Today');
@@ -261,8 +264,6 @@ const Dashboard = () => {
     <div className="dashboard">
       <h1>{t('welcome')}, {user?.username}!</h1>
 
-      {renderStats()}
-
       <div className="dashboard-cards">
         <div className="dashboard-card" onClick={() => navigate('/tree')}>
           <h2>{t('familyTree')}</h2>
@@ -289,6 +290,9 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {canSeeStats && renderStats()}
+
     </div>
   );
 };
