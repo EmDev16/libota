@@ -1409,3 +1409,93 @@ small { color: var(--muted); }
 @media (hover: none) {
   .dashboard-card:hover, .pedigree-card:hover, .person-node:hover { transform: none; }
 }
+
+/* ===================================================================
+   Dashboard: numbers, birthdays and charts
+   =================================================================== */
+.muted { color: var(--muted); }
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+.stat-tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--copper);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem;
+}
+.stat-value { font-size: 1.8rem; font-weight: 600; color: var(--navy); line-height: 1.1; }
+.stat-label { font-size: 0.85rem; color: var(--muted); margin-top: 0.25rem; }
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.insight-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.25rem;
+  min-width: 0;
+}
+.insight-card h2 { font-size: 1.05rem; margin-bottom: 0.75rem; color: var(--ink); }
+.insight-card h3 { font-size: 0.95rem; margin: 1rem 0 0.4rem; color: var(--ink); }
+.insight-wide { grid-column: 1 / -1; }
+
+.birthday-list, .plain-list { list-style: none; }
+.plain-list li { padding: 0.25rem 0; }
+.birthday-list li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.birthday-list li:last-child { border-bottom: none; }
+.birthday-name { font-weight: 500; }
+.birthday-when { text-align: right; color: var(--copper-dark); font-weight: 500; }
+.birthday-detail { color: var(--muted); font-size: 0.85rem; }
+.birthday-today { background: var(--copper-tint); margin: 0 -0.5rem; padding-left: 0.5rem !important; padding-right: 0.5rem !important; border-radius: var(--radius); }
+
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; }
+.facts dt { color: var(--muted); }
+.facts dd { font-weight: 500; }
+
+.bar-list { list-style: none; }
+.bar-list li {
+  display: grid;
+  grid-template-columns: minmax(70px, 30%) 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+}
+.bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { background: var(--soft); border-radius: var(--radius); height: 14px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--copper); border-radius: var(--radius); }
+.bar-value { color: var(--muted); font-size: 0.85rem; min-width: 2ch; text-align: right; }
+
+.growth-chart { width: 100%; height: auto; display: block; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-text { fill: var(--muted); font-size: 11px; }
+.chart-bar { fill: var(--copper); opacity: 0.85; }
+.chart-line { stroke: var(--navy); stroke-width: 2.5; stroke-linejoin: round; }
+.chart-dot { fill: var(--navy); stroke: #fff; stroke-width: 1.5; }
+.chart-legend { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin-top: 0.5rem; }
+.legend-bar, .legend-line { display: inline-block; vertical-align: middle; margin-right: 0.3rem; }
+.legend-bar { width: 12px; height: 12px; background: var(--copper); border-radius: 2px; }
+.legend-line { width: 16px; height: 3px; background: var(--navy); }
+
+.dashboard-cards { margin-top: 0.5rem; }
+
+@media (max-width: 600px) {
+  .stat-tiles { grid-template-columns: repeat(2, 1fr); }
+  .insight-grid { grid-template-columns: 1fr; }
+  .stat-value { font-size: 1.5rem; }
+}
