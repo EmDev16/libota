@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { IMAGE_BASE_URL } from '../api';
+import { birthdayBadge } from '../utils/birthdays';
+import { localToday } from '../utils/dates';
 
 // The handles are only anchor points for the lines, so they are invisible
 const hidden = { opacity: 0, pointerEvents: 'none' };
@@ -12,6 +14,7 @@ const PersonNode = ({ data }) => {
 
   const birthYear = person.birthDate ? new Date(person.birthDate).getFullYear() : '?';
   const deathYear = person.deathDate ? new Date(person.deathDate).getFullYear() : '';
+  const badge = birthdayBadge(person, localToday());
   const lifespan = deathYear ? `${birthYear} - ${deathYear}` : `b. ${birthYear}`;
 
   return (
@@ -34,6 +37,12 @@ const PersonNode = ({ data }) => {
       <Handle id="bottom" type="source" position={Position.Bottom} style={hidden} isConnectable={false} />
       <Handle id="left-source" type="source" position={Position.Left} style={hidden} isConnectable={false} />
       <Handle id="right-source" type="source" position={Position.Right} style={hidden} isConnectable={false} />
+
+      {badge && (
+        <span className="birthday-badge" title={badge.title} aria-label={badge.title}>
+          {badge.emoji}
+        </span>
+      )}
 
       <div className="person-node-content" style={{ minWidth: 0, width: '100%' }}>
         {person.photo && (

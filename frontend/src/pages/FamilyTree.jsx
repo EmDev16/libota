@@ -19,7 +19,8 @@ import { UnionNode, LabelNode, BusEdge } from '../components/TreeNodes';
 import ExportPdfModal from '../components/ExportPdfModal';
 import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
 import { calculateGraphLayoutFor } from '../utils/graphLayout';
-import { formatDate } from '../utils/dates';
+import { formatDate, localToday } from '../utils/dates';
+import { birthdayBadge } from '../utils/birthdays';
 
 const nodeTypes = {
   personNode: PersonNode,
@@ -36,8 +37,15 @@ const isPhone = typeof window !== 'undefined' && window.innerWidth < 600;
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
-const PersonCard = ({ person, onClick, style }) => (
+const PersonCard = ({ person, onClick, style }) => {
+  const badge = birthdayBadge(person, localToday());
+  return (
   <div className="pedigree-card" style={style} onClick={() => onClick(person)}>
+    {badge && (
+      <span className="birthday-badge" title={badge.title} aria-label={badge.title}>
+        {badge.emoji}
+      </span>
+    )}
     {person.photo && (
       <img
         src={`${IMAGE_BASE_URL}${person.photo}`}
@@ -53,7 +61,8 @@ const PersonCard = ({ person, onClick, style }) => (
       </p>
     </div>
   </div>
-);
+  );
+};
 
 // The traditional view: the same positions as the modern view (every person once, parents above,
 // partners side by side), drawn as cards with square lines
