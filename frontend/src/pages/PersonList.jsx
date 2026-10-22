@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { personAPI } from '../api';
 import { photoUrl } from '../utils/photo';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate } from '../utils/dates';
 
 const PersonList = () => {
   const { t } = useTranslation();
@@ -86,7 +87,7 @@ const PersonList = () => {
               )}
               <div className="person-details">
                 <h3>{person.firstName} {person.lastName}</h3>
-                <p>{person.birthDate ? new Date(person.birthDate).toLocaleDateString() : ''}</p>
+                <p>{formatDate(person.birthDate)}</p>
               </div>
               {isAdmin && (
                 <div className="person-actions">

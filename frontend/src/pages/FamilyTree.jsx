@@ -19,6 +19,7 @@ import { UnionNode, LabelNode, BusEdge } from '../components/TreeNodes';
 import ExportPdfModal from '../components/ExportPdfModal';
 import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
 import { calculateGraphLayoutFor } from '../utils/graphLayout';
+import { formatDate } from '../utils/dates';
 
 const nodeTypes = {
   personNode: PersonNode,
@@ -367,8 +368,8 @@ const FamilyTree = () => {
               )}
               <h2>{selectedPerson.firstName} {selectedPerson.lastName}</h2>
               <div className="modal-info">
-                <p><strong>{t('birthDate')}:</strong> {selectedPerson.birthDate ? new Date(selectedPerson.birthDate).toLocaleDateString() : '-'}</p>
-                <p><strong>{t('deathDate')}:</strong> {selectedPerson.deathDate ? new Date(selectedPerson.deathDate).toLocaleDateString() : '-'}</p>
+                <p><strong>{t('birthDate')}:</strong> {formatDate(selectedPerson.birthDate, '-')}</p>
+                <p><strong>{t('deathDate')}:</strong> {formatDate(selectedPerson.deathDate, '-')}</p>
                 <p><strong>{t('gender')}:</strong> {t(selectedPerson.gender)}</p>
                 {selectedPerson.description && (
                   <p><strong>{t('description')}:</strong> {selectedPerson.description}</p>

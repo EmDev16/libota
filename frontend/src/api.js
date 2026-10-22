@@ -51,6 +51,7 @@ export const authAPI = {
 export const personAPI = {
   getAll: () => api.get('/person'),
   getById: (id) => api.get(`/person/${id}`),
+  getStats: (today) => api.get('/person/stats', { params: { today } }),
   create: (formData) => api.post('/person', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
