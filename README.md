@@ -4,7 +4,7 @@
 
 Libota is a private family tree website. Relatives log in, browse the tree, look up how two people are related, and the admins keep the data up to date. It is available in French, English, Lingala and Dutch.
 
-**Live site:** _add the address of your Vercel website here_
+**Live site:** _libota1.vercel.app_
 
 ## Contents
 - [What it can do](#what-it-can-do)
