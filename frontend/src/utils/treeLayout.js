@@ -171,12 +171,21 @@ export function groupCouples(people) {
  *             children those two have together: { children: [node, ...] }
  *   children: children when the row is a single person, otherwise all children flattened
  *   level
+ *   referenceIds:  ids of people in `couple` who are only a reference: their real card is in
+ *                  another row (see below). Usually empty.
+ *   referenceWith: { [personId]: people } the people next to whom that real card is drawn
  * }
+ *
+ * A tree can draw a person in one place only. Someone who belongs to two families (for example
+ * both partners of a couple have parents in the tree) is drawn in full next to their partner and
+ * children, and gets a small reference card in the other family. A reference node looks like
+ *   { couple: [person], links: [], children: [], reference: { with: people }, level }
  */
 export function buildFamilyTree(people, levels) {
   const tree = [];
   const peopleMap = new Map(people.map(p => [p._id, p]));
   const processed = new Set();
+  const rows = new Map(); // person id -> the row (array of people) where their real card is drawn
 
   const hasParentsInTree = p => (p.parents || []).some(pid => peopleMap.has(pid));
   // People without parents who are connected, through a chain of spouses, to someone who
@@ -202,14 +211,14 @@ export function buildFamilyTree(people, levels) {
     .filter(p => !hasParentsInTree(p) && !attached.has(p._id))
     .forEach(root => {
       if (processed.has(root._id)) return;
-      const familyNode = buildFamilyNode(root, peopleMap, levels, processed);
+      const familyNode = buildFamilyNode(root, peopleMap, levels, processed, rows);
       if (familyNode) tree.push(familyNode);
     });
 
   // Anyone left over
   people.forEach(person => {
     if (!processed.has(person._id)) {
-      const familyNode = buildFamilyNode(person, peopleMap, levels, processed);
+      const familyNode = buildFamilyNode(person, peopleMap, levels, processed, rows);
       if (familyNode) tree.push(familyNode);
     }
   });
@@ -228,8 +237,12 @@ const byBirth = (a, b) => {
  * Build a family node: the person, their partner(s) and the children of each partnership.
  * Supports a person with up to two partners (partner - person - partner). Married-in
  * partners at either end can bring one more partner of their own.
+ *
+ * A partner who is already drawn in another row is shown again here as a reference, so the
+ * partnership and its children stay together. A child who is already drawn in another row
+ * (because they are the partner of someone from another family) gets a reference node.
  */
-function buildFamilyNode(person, peopleMap, levels, processed) {
+function buildFamilyNode(person, peopleMap, levels, processed, rows) {
   if (processed.has(person._id)) return null;
 
   const hasParentsInTree = p => (p.parents || []).some(pid => peopleMap.has(pid));
@@ -237,14 +250,31 @@ function buildFamilyNode(person, peopleMap, levels, processed) {
     (ids || []).map(id => peopleMap.get(id)).filter(p => p && !processed.has(p._id));
 
   // 1. Decide who is on the row and in which order
-  const partners = available(person.spouses);
+  const partnerList = [];
+  (person.spouses || []).forEach(id => {
+    const p = peopleMap.get(id);
+    if (p && p._id !== person._id && !partnerList.includes(p)) partnerList.push(p);
+  });
+  const partners = partnerList.slice(0, 2);
+  const refIds = new Set(partners.filter(p => processed.has(p._id)).map(p => p._id));
+
   let path = [person];
   if (partners.length === 1) path = [person, partners[0]];
   else if (partners.length >= 2) path = [partners[0], person, partners[1]];
 
   const inPath = p => path.some(x => x._id === p._id);
-  const otherPartnerOf = end =>
-    available(end.spouses).find(p => !inPath(p) && !hasParentsInTree(p)) || null;
+  const sharesChild = (a, b) => (a.children || []).some(id => (b.children || []).includes(id));
+  // Next partner at the end of the row: someone without parents in the tree (married in), or,
+  // failing that, someone who has children with this end (so those children can sit under both).
+  const otherPartnerOf = end => {
+    if (refIds.has(end._id)) return null;
+    const options = available(end.spouses).filter(p => !inPath(p));
+    return (
+      options.find(p => !hasParentsInTree(p)) ||
+      options.find(p => sharesChild(p, end)) ||
+      null
+    );
+  };
 
   for (let guard = 0; guard < 4; guard++) {
     let grew = false;
@@ -261,7 +291,16 @@ function buildFamilyNode(person, peopleMap, levels, processed) {
     if (!grew) break;
   }
 
-  path.forEach(p => processed.add(p._id));
+  // Everyone who is not a reference is drawn for real in this row
+  path.forEach(p => {
+    if (refIds.has(p._id)) return;
+    processed.add(p._id);
+    rows.set(p._id, path);
+  });
+  const referenceWith = {};
+  refIds.forEach(id => {
+    referenceWith[id] = (rows.get(id) || []).filter(p => p._id !== id);
+  });
 
   // 2. Hand every child to the link between its two parents
   const idxOf = new Map(path.map((p, i) => [p._id, i]));
@@ -274,7 +313,7 @@ function buildFamilyNode(person, peopleMap, levels, processed) {
       seen.add(childId);
 
       const child = peopleMap.get(childId);
-      if (!child || processed.has(childId)) return;
+      if (!child || idxOf.has(childId)) return;
 
       const known = (child.parents || []).filter(pid => peopleMap.has(pid));
       if (known.length === 0 || !known.every(pid => idxOf.has(pid))) return;
@@ -283,30 +322,50 @@ function buildFamilyNode(person, peopleMap, levels, processed) {
       if (path.length === 1) {
         slot = 0;
       } else if (known.length === 1) {
-        // only one known parent: put the child under that person's first link
-        slot = Math.max(idxOf.get(known[0]) - 1, 0);
+        // Only one known parent: put the child under that person's first link.
+        // A reference partner's single-parent children belong to their real row.
+        if (!refIds.has(known[0])) slot = Math.max(idxOf.get(known[0]) - 1, 0);
       } else if (known.length === 2) {
         const [a, b] = known.map(pid => idxOf.get(pid)).sort((x, y) => x - y);
-        if (b - a === 1) slot = a;
+        // Parents that are not next to each other (rare: three people who are all partners of
+        // each other) still show the child, under the first link that touches one of them.
+        slot = a;
       }
 
       if (slot >= 0) slots[slot].push(child);
     });
   });
 
-  // 3. Build the child nodes (oldest first)
+  // 3. Build the child nodes (oldest first). A child who is already drawn elsewhere is
+  //    shown here as a reference to that card.
+  const level = levels.get(person._id) || 0;
+  const makeReference = child => ({
+    couple: [child],
+    links: [],
+    children: [],
+    referenceIds: [],
+    referenceWith: {},
+    reference: { with: (rows.get(child._id) || []).filter(p => p._id !== child._id) },
+    level: levels.get(child._id) || 0
+  });
+
   const groups = slots.map(list =>
     list
       .sort(byBirth)
-      .map(child => buildFamilyNode(child, peopleMap, levels, processed))
-      .filter(Boolean)
+      .map(child =>
+        processed.has(child._id)
+          ? makeReference(child)
+          : buildFamilyNode(child, peopleMap, levels, processed, rows)
+      )
   );
 
   return {
     couple: path,
     links: path.length === 1 ? [] : groups.map(children => ({ children })),
     children: path.length === 1 ? groups[0] : groups.flat(),
-    level: levels.get(person._id) || 0
+    referenceIds: [...refIds],
+    referenceWith,
+    level
   };
 }
 
@@ -418,7 +477,7 @@ const M = {
 export const MODERN_SIZES = M;
 
 /**
- * Turn the family tree into positioned nodes and edges.
+ * Turn the family tree (from calculateTraditionalLayout) into positioned nodes and edges.
  * - children are centered under their parents
  * - every partnership gets a small "union" dot between the two partners; the children hang from it
  * - people without any links are placed in a row at the bottom
@@ -437,7 +496,25 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
     return raw.filter(g => g.kids.length > 0);
   };
 
-  const unionId = (node, i) => `union-${node.couple[i]._id}-${node.couple[i + 1]._id}`;
+  // A person can be drawn more than once (a reference card), and every card needs its own id
+  const cardId = (node, person) => {
+    if (node.reference) return `ref-${person._id}-child`;
+    const refs = node.referenceIds || [];
+    if (refs.includes(person._id)) {
+      const owner = node.couple.find(p => !refs.includes(p._id));
+      return `ref-${person._id}-in-${owner._id}`;
+    }
+    return person._id;
+  };
+
+  // What the card needs to know when it is a reference
+  const referenceOf = (node, person) => {
+    if (node.reference) return node.reference;
+    const refs = node.referenceIds || [];
+    return refs.includes(person._id) ? { with: (node.referenceWith || {})[person._id] || [] } : undefined;
+  };
+
+  const unionId = (node, i) => `union-${cardId(node, node.couple[i])}-${cardId(node, node.couple[i + 1])}`;
 
   // Pass 1: how wide is every family (its own row, or all of its descendants if wider)
   const measure = node => {
@@ -465,10 +542,10 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
 
     node.couple.forEach((person, i) => {
       nodes.push({
-        id: person._id,
+        id: cardId(node, person),
         type: 'personNode',
         position: { x: rowLeft + i * pitch, y: top },
-        data: { person, level: node.level }
+        data: { person, level: node.level, reference: referenceOf(node, person) }
       });
     });
 
@@ -491,7 +568,7 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
       });
       edges.push({
         id: `${id}-left`,
-        source: node.couple[i]._id,
+        source: cardId(node, node.couple[i]),
         sourceHandle: 'right-source',
         target: id,
         targetHandle: 'left',
@@ -500,7 +577,7 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
       });
       edges.push({
         id: `${id}-right`,
-        source: node.couple[i + 1]._id,
+        source: cardId(node, node.couple[i + 1]),
         sourceHandle: 'left-source',
         target: id,
         targetHandle: 'right',
@@ -519,7 +596,7 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
         linkIndex === -1
           ? [node.couple[0]._id]
           : [node.couple[linkIndex]._id, node.couple[linkIndex + 1]._id];
-      const sourceId = linkIndex === -1 ? node.couple[0]._id : unionId(node, linkIndex);
+      const sourceId = linkIndex === -1 ? cardId(node, node.couple[0]) : unionId(node, linkIndex);
 
       kids.forEach(kid => {
         place(kid, cursor, childTop);
@@ -532,10 +609,10 @@ export function calculateModernLayout(familyTree, unlinked = [], unlinkedLabel =
           kid.couple[0];
 
         edges.push({
-          id: `child-${sourceId}-${kidPerson._id}`,
+          id: `child-${sourceId}-${cardId(kid, kidPerson)}`,
           source: sourceId,
           sourceHandle: 'bottom',
-          target: kidPerson._id,
+          target: cardId(kid, kidPerson),
           targetHandle: 'top',
           type: 'smoothstep',
           style: { stroke: color, strokeWidth: 2 }

@@ -1,12 +1,12 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { photoUrl } from '../utils/photo';
+import { IMAGE_BASE_URL } from '../api';
 
 // The handles are only anchor points for the lines, so they are invisible
 const hidden = { opacity: 0, pointerEvents: 'none' };
 
 const PersonNode = ({ data }) => {
-  const { person } = data;
+  const { person, reference } = data;
   const genderColor =
     person.gender === 'male' ? '#3498db' : person.gender === 'female' ? '#e74c3c' : '#95a5a6';
 
@@ -16,13 +16,15 @@ const PersonNode = ({ data }) => {
 
   return (
     <div
-      className={`person-node${person.deathDate ? ' person-node--deceased' : ''}`}
+      className={`person-node${person.deathDate ? ' person-node--deceased' : ''}${reference ? ' person-node--reference' : ''}`}
       style={{
         width: 200,
         minHeight: 96,
         display: 'flex',
         alignItems: 'center',
         borderColor: genderColor,
+        borderStyle: reference ? 'dashed' : undefined,
+        opacity: reference ? 0.75 : 1,
         boxShadow: `0 4px 12px ${genderColor}40`
       }}
     >
@@ -36,7 +38,7 @@ const PersonNode = ({ data }) => {
       <div className="person-node-content" style={{ minWidth: 0, width: '100%' }}>
         {person.photo && (
           <img
-            src={photoUrl(person.photo)}
+            src={`${IMAGE_BASE_URL}${person.photo}`}
             alt={`${person.firstName} ${person.lastName}`}
             className="person-node-photo"
           />
@@ -49,6 +51,11 @@ const PersonNode = ({ data }) => {
             {person.firstName} {person.lastName}
           </h4>
           <p className="person-node-lifespan">{lifespan}</p>
+          {reference && (
+            <p className="person-node-lifespan" style={{ fontStyle: 'italic' }}>
+              also shown in another branch
+            </p>
+          )}
           <div
             className="person-node-gender-indicator"
             style={{ backgroundColor: genderColor }}

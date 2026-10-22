@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { treeAPI } from '../api';
-import { photoUrl } from '../utils/photo';
+import { treeAPI, IMAGE_BASE_URL } from '../api';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
   ReactFlow,
@@ -47,11 +46,18 @@ const buildTree = (people, rootPersonId) => {
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
-const PersonCard = ({ person, onClick }) => (
-  <div className="pedigree-card" onClick={() => onClick(person)}>
+// `alsoWith` is set for a reference card: this person is drawn in full in another family
+// (next to their partner), and only repeated here so this family stays complete.
+const PersonCard = ({ person, onClick, alsoWith = null }) => (
+  <div
+    className={`pedigree-card${alsoWith ? ' pedigree-card--reference' : ''}`}
+    style={alsoWith ? { borderStyle: 'dashed', opacity: 0.75 } : undefined}
+    title={alsoWith ? 'Also shown with their own family elsewhere in the tree' : undefined}
+    onClick={() => onClick(person)}
+  >
     {person.photo && (
       <img
-        src={photoUrl(person.photo)}
+        src={`${IMAGE_BASE_URL}${person.photo}`}
         alt={`${person.firstName} ${person.lastName}`}
         className="pedigree-photo"
       />
@@ -62,6 +68,13 @@ const PersonCard = ({ person, onClick }) => (
         {getYear(person.birthDate) || '?'}
         {person.deathDate ? ` - ${getYear(person.deathDate)}` : ''}
       </p>
+      {alsoWith && (
+        <p className="pedigree-lifespan" style={{ fontStyle: 'italic' }}>
+          {alsoWith.length > 0
+            ? `with ${alsoWith.map(p => p.firstName).join(', ')}`
+            : 'see other branch'}
+        </p>
+      )}
     </div>
   </div>
 );
@@ -71,9 +84,9 @@ const ChildrenRow = ({ nodes, onPersonClick, color }) => (
   <div className="children-row" style={{ '--union-color': color || '#3498db' }}>
     <div className="children-connector-line" />
     <div className="children-container">
-      {nodes.map((childNode) => (
+      {nodes.map((childNode, i) => (
         <FamilyNode
-          key={childNode.couple[0]._id}
+          key={`${childNode.couple[0]._id}-${i}`}
           familyNode={childNode}
           onPersonClick={onPersonClick}
         />
@@ -84,7 +97,12 @@ const ChildrenRow = ({ nodes, onPersonClick, color }) => (
 
 // A person / couple / person with several partners, with all of their children underneath
 const FamilyNode = ({ familyNode, onPersonClick }) => {
-  const { couple, links, children } = familyNode;
+  const { couple, links, children, referenceWith = {}, reference } = familyNode;
+  // What to pass to a card so it is drawn as a reference (a person drawn in full elsewhere)
+  const refInfo = (person) => {
+    if (reference) return reference.with || [];
+    return (familyNode.referenceIds || []).includes(person._id) ? referenceWith[person._id] || [] : null;
+  };
 
   // Several partnerships: cards and links share one grid, so every group of
   // children sits exactly under the link between its two parents
@@ -103,7 +121,7 @@ const FamilyNode = ({ familyNode, onPersonClick }) => {
             return (
               <React.Fragment key={person._id}>
                 <div className="grid-card" style={{ gridColumn: i * 2 + 1, gridRow: 1 }}>
-                  <PersonCard person={person} onClick={onPersonClick} />
+                  <PersonCard person={person} onClick={onPersonClick} alsoWith={refInfo(person)} />
                 </div>
 
                 {link && (
@@ -147,7 +165,7 @@ const FamilyNode = ({ familyNode, onPersonClick }) => {
         {couple.map((person, idx) => (
           <React.Fragment key={person._id}>
             {idx > 0 && <div className="spouse-connector" />}
-            <PersonCard person={person} onClick={onPersonClick} />
+            <PersonCard person={person} onClick={onPersonClick} alsoWith={refInfo(person)} />
           </React.Fragment>
         ))}
       </div>
@@ -382,7 +400,7 @@ const FamilyTree = () => {
             <div className="person-details">
               {selectedPerson.photo && (
                 <img
-                  src={photoUrl(selectedPerson.photo)}
+                  src={`${IMAGE_BASE_URL}${selectedPerson.photo}`}
                   alt={`${selectedPerson.firstName} ${selectedPerson.lastName}`}
                   className="modal-photo"
                 />
