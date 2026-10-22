@@ -22,7 +22,8 @@ const AdminPanel = () => {
     username: '',
     password: '',
     role: 'member',
-    language: 'en'
+    language: 'en',
+    showStats: false
   });
 
   // Import state
@@ -53,10 +54,11 @@ const AdminPanel = () => {
         newUser.username,
         newUser.password,
         newUser.role,
-        newUser.language
+        newUser.language,
+        newUser.showStats
       );
       setShowAddUser(false);
-      setNewUser({ username: '', password: '', role: 'member', language: 'en' });
+      setNewUser({ username: '', password: '', role: 'member', language: 'en', showStats: false });
       loadUsers();
     } catch (error) {
       console.error('Error adding user:', error);
@@ -74,6 +76,16 @@ const AdminPanel = () => {
         console.error('Error deleting user:', error);
         alert(error.response?.status === 400 ? error.response.data.error : t('error'));
       }
+    }
+  };
+
+  const handleToggleStats = async (user) => {
+    try {
+      await authAPI.setUserStats(user._id, !user.showStats);
+      loadUsers();
+    } catch (error) {
+      console.error('Error changing statistics access:', error);
+      alert(t('error'));
     }
   };
 
@@ -247,6 +259,18 @@ const AdminPanel = () => {
                 <option value="nl">Nederlands</option>
               </select>
             </div>
+            {newUser.role === 'member' && (
+              <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={newUser.showStats}
+                    onChange={(e) => setNewUser({ ...newUser, showStats: e.target.checked })}
+                  />
+                  {t('showStatsOption', 'Show family statistics on the dashboard')}
+                </label>
+              </div>
+            )}
             <button type="submit" className="btn-primary">
               {t('save')}
             </button>
@@ -267,6 +291,16 @@ const AdminPanel = () => {
                 <strong>{user.username}</strong>
                 <span className={`role-badge ${user.role}`}>{user.role}</span>
                 <span className="language-badge">{user.language}</span>
+                {user.role === 'member' && (
+                  <label className="checkbox-label stats-toggle">
+                    <input
+                      type="checkbox"
+                      checked={!!user.showStats}
+                      onChange={() => handleToggleStats(user)}
+                    />
+                    {t('statsShort', 'Statistics')}
+                  </label>
+                )}
               </div>
               <button
                 onClick={() => handleResetPassword(user)}

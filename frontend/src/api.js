@@ -37,14 +37,15 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (username, password, language) =>
     api.post('/auth/login', { username, password, language }),
-  register: (username, password, role, language) =>
-    api.post('/auth/register', { username, password, role, language }),
+  register: (username, password, role, language, showStats = false) =>
+    api.post('/auth/register', { username, password, role, language, showStats }),
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>
     api.put('/auth/password', { currentPassword, newPassword }),
   resetUserPassword: (id, newPassword) =>
     api.put(`/auth/users/${id}/password`, { newPassword }),
   getUsers: () => api.get('/auth/users'),
+  setUserStats: (id, showStats) => api.put(`/auth/users/${id}/stats`, { showStats }),
   deleteUser: (id) => api.delete(`/auth/users/${id}`)
 };
 
