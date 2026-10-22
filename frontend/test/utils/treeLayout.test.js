@@ -421,3 +421,105 @@ describe('calculateModernLayout', () => {
     expect(result.edges).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// A person from one family married to a person from another family
+// ---------------------------------------------------------------------------
+
+// David + Rebecca have Ruth and Marthe. Ruth married André (his parents are in the tree too)
+// and they have Nsonga. Marthe married Moise, who is also from a family in the tree.
+const twoFamiliesMeet = () => [
+  person('david', { spouses: ['rebecca'], children: ['ruth', 'marthe'] }),
+  person('rebecca', { gender: 'female', spouses: ['david'], children: ['ruth', 'marthe'] }),
+  person('ruth', { gender: 'female', parents: ['david', 'rebecca'], spouses: ['andre'], children: ['nsonga'] }),
+  person('marthe', { gender: 'female', parents: ['david', 'rebecca'], spouses: ['moise'] }),
+  person('andre', { parents: ['papa-daie', 'mama-daie'], spouses: ['ruth'], children: ['nsonga'] }),
+  person('papa-daie', { spouses: ['mama-daie'], children: ['andre'] }),
+  person('mama-daie', { gender: 'female', spouses: ['papa-daie'], children: ['andre'] }),
+  person('moise', { parents: ['papa-m', 'mama-m'], spouses: ['marthe'] }),
+  person('papa-m', { spouses: ['mama-m'], children: ['moise'] }),
+  person('mama-m', { gender: 'female', spouses: ['papa-m'], children: ['moise'] }),
+  person('nsonga', { gender: 'female', parents: ['ruth', 'andre'] })
+];
+
+describe('a person who belongs to two families', () => {
+  it('shows both sisters under their parents, even though one is married into another family', () => {
+    const tree = buildTree(twoFamiliesMeet());
+    const davidRow = findNode(tree, 'david');
+    const kids = ids(childrenOf(davidRow).flatMap((n) => n.couple));
+
+    expect(kids).toContain('ruth');
+    expect(kids).toContain('marthe');
+  });
+
+  it('draws the husband\'s parents above him as well', () => {
+    const tree = buildTree(twoFamiliesMeet());
+    const papaRow = findNode(tree, 'papa-daie');
+    expect(ids(childrenOf(papaRow).flatMap((n) => n.couple))).toContain('andre');
+  });
+
+  it('draws each person in full exactly once, the rest are references', () => {
+    const tree = buildTree(twoFamiliesMeet());
+    const real = [];
+    const walk = (nodes) =>
+      nodes.forEach((n) => {
+        if (!n.reference) {
+          n.couple.forEach((p) => {
+            if (!(n.referenceIds || []).includes(p._id)) real.push(p._id);
+          });
+        }
+        walk(childrenOf(n));
+      });
+    walk(tree);
+
+    expect([...real].sort()).toEqual(twoFamiliesMeet().map((p) => p._id).sort());
+  });
+
+  it('marks the second appearance as a reference that says where the real card is', () => {
+    const tree = buildTree(twoFamiliesMeet());
+    const refs = [];
+    const walk = (nodes) =>
+      nodes.forEach((n) => {
+        if (n.reference) refs.push(n);
+        walk(childrenOf(n));
+      });
+    walk(tree);
+
+    expect(refs.length).toBeGreaterThan(0);
+    refs.forEach((r) => expect(r.couple).toHaveLength(1));
+    // Ruth's real card is next to André, so her reference says "with André"
+    const ruthRef = refs.find((r) => r.couple[0]._id === 'ruth');
+    if (ruthRef) expect(ids(ruthRef.reference.with)).toContain('andre');
+  });
+
+  it('keeps the reference out of the modern view\'s duplicate ids', () => {
+    const tree = buildTree(twoFamiliesMeet());
+    const { nodes } = calculateModernLayout(tree);
+    const nodeIds = nodes.map((n) => n.id);
+
+    expect(new Set(nodeIds).size).toBe(nodeIds.length);
+    // The real cards keep their person id
+    expect(nodeIds).toContain('ruth');
+    expect(nodeIds).toContain('marthe');
+  });
+});
+
+describe('a person with two partners who both come from families in the tree', () => {
+  it('still shows the children of every partnership under their two parents', () => {
+    const people = [
+      person('gp1', { spouses: ['gp2'], children: ['x', 'y'] }),
+      person('gp2', { spouses: ['gp1'], children: ['x', 'y'] }),
+      person('hp1', { spouses: ['hp2'], children: ['z'] }),
+      person('hp2', { spouses: ['hp1'], children: ['z'] }),
+      person('x', { parents: ['gp1', 'gp2'], spouses: ['z'], children: ['kid'] }),
+      person('y', { parents: ['gp1', 'gp2'] }),
+      person('z', { parents: ['hp1', 'hp2'], spouses: ['x'], children: ['kid'] }),
+      person('kid', { parents: ['x', 'z'] })
+    ];
+    const tree = buildTree(people);
+
+    expect(ids(childrenOf(findNode(tree, 'gp1')).flatMap((n) => n.couple))).toContain('x');
+    expect(ids(childrenOf(findNode(tree, 'hp1')).flatMap((n) => n.couple))).toContain('z');
+    expect(allIds(tree)).toContain('kid');
+  });
+});
