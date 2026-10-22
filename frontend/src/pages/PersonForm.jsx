@@ -15,7 +15,8 @@ const PersonForm = () => {
     gender: 'male',
     description: '',
     parents: [],
-    spouses: []
+    spouses: [], // in the order of the relationships: first partner first
+    formerSpouses: [] // the partners from `spouses` whose relationship has ended
   });
   const [photo, setPhoto] = useState(null);
   const [allPeople, setAllPeople] = useState([]);
@@ -51,7 +52,8 @@ const PersonForm = () => {
         gender: person.gender,
         description: person.description,
         parents: person.parents?.map(p => p._id) || [],
-        spouses: person.spouses?.map(s => s._id) || []
+        spouses: person.spouses?.map(s => s._id) || [],
+        formerSpouses: (person.formerSpouses || []).map(s => s._id || s)
       });
     } catch (error) {
       console.error('Error loading person:', error);
@@ -71,6 +73,7 @@ const PersonForm = () => {
     data.append('description', formData.description);
     data.append('parents', JSON.stringify(formData.parents));
     data.append('spouses', JSON.stringify(formData.spouses));
+    data.append('formerSpouses', JSON.stringify(formData.formerSpouses));
     if (photo) {
       data.append('photo', photo);
     }
@@ -110,6 +113,42 @@ const PersonForm = () => {
         [field]: [...current, value]
       });
     }
+  };
+
+  // Un-ticking a partner also forgets that the relationship had ended
+  const handleSpouseToggle = (personId) => {
+    const selected = formData.spouses.includes(personId);
+    setFormData({
+      ...formData,
+      spouses: selected
+        ? formData.spouses.filter(v => v !== personId)
+        : [...formData.spouses, personId],
+      formerSpouses: formData.formerSpouses.filter(v => v !== personId)
+    });
+  };
+
+  // Move a partner one place up or down (the order is the order of the relationships)
+  const moveSpouse = (index, step) => {
+    const next = [...formData.spouses];
+    const target = index + step;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setFormData({ ...formData, spouses: next });
+  };
+
+  const toggleEnded = (personId) => {
+    const ended = formData.formerSpouses.includes(personId);
+    setFormData({
+      ...formData,
+      formerSpouses: ended
+        ? formData.formerSpouses.filter(v => v !== personId)
+        : [...formData.formerSpouses, personId]
+    });
+  };
+
+  const nameOf = (personId) => {
+    const found = allPeople.find(p => p._id === personId);
+    return found ? `${found.firstName} ${found.lastName}` : '?';
   };
 
   return (
@@ -207,12 +246,54 @@ const PersonForm = () => {
                 <input
                   type="checkbox"
                   checked={formData.spouses.includes(person._id)}
-                  onChange={() => handleMultiSelect('spouses', person._id)}
+                  onChange={() => handleSpouseToggle(person._id)}
                 />
                 {person.firstName} {person.lastName}
               </label>
             ))}
           </div>
+
+          {formData.spouses.length > 0 && (
+            <div className="spouse-order" style={{ marginTop: '0.75rem' }}>
+              <strong>{t('partnerOrder', 'Partners, first to latest')}</strong>
+              {formData.spouses.map((spouseId, index) => (
+                <div
+                  key={spouseId}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.35rem 0' }}
+                >
+                  <span style={{ flex: 1 }}>
+                    {index + 1}. {nameOf(spouseId)}
+                  </span>
+                  <label className="checkbox-label" style={{ margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.formerSpouses.includes(spouseId)}
+                      onChange={() => toggleEnded(spouseId)}
+                    />
+                    {t('relationshipEnded', 'Relationship ended')}
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => moveSpouse(index, -1)}
+                    disabled={index === 0}
+                    aria-label={t('moveUp', 'Move up')}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => moveSpouse(index, 1)}
+                    disabled={index === formData.spouses.length - 1}
+                    aria-label={t('moveDown', 'Move down')}
+                  >
+                    ↓
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="form-actions">
           <button type="submit" className="btn-primary" disabled={loading}>

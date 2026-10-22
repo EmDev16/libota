@@ -25,7 +25,8 @@ export function normalizeRelationships(people) {
       _id: id,
       parents: unique(p.parents),
       children: unique(p.children),
-      spouses: unique(p.spouses)
+      spouses: unique(p.spouses),
+      formerSpouses: unique(p.formerSpouses)
     });
   });
 
@@ -43,6 +44,17 @@ export function normalizeRelationships(people) {
       const spouse = map.get(sid);
       if (spouse) add(spouse.spouses, person._id);
     });
+  });
+
+  // An ended relationship counts for both partners, and only for people who are partners
+  map.forEach(person => {
+    person.formerSpouses.forEach(sid => {
+      const spouse = map.get(sid);
+      if (spouse && person.spouses.includes(sid)) add(spouse.formerSpouses, person._id);
+    });
+  });
+  map.forEach(person => {
+    person.formerSpouses = person.formerSpouses.filter(sid => person.spouses.includes(sid));
   });
 
   // Two parents of the same child form a couple

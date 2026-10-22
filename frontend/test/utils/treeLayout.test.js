@@ -523,3 +523,34 @@ describe('a person with two partners who both come from families in the tree', (
     expect(allIds(tree)).toContain('kid');
   });
 });
+
+describe('ended relationships (formerSpouses)', () => {
+  it('counts for both partners when only one side says it', () => {
+    const people = normalizeRelationships([
+      person('jean', { spouses: ['carine'], formerSpouses: ['carine'] }),
+      person('carine', { spouses: ['jean'] })
+    ]);
+
+    expect(people.find((p) => p._id === 'carine').formerSpouses).toEqual(['jean']);
+  });
+
+  it('ignores people who are not partners', () => {
+    const people = normalizeRelationships([
+      person('jean', { formerSpouses: ['carine'] }),
+      person('carine')
+    ]);
+
+    expect(people.find((p) => p._id === 'jean').formerSpouses).toEqual([]);
+    expect(people.find((p) => p._id === 'carine').formerSpouses).toEqual([]);
+  });
+
+  it('accepts populated objects and missing lists', () => {
+    const people = normalizeRelationships([
+      person('jean', { spouses: [{ _id: 'carine' }], formerSpouses: [{ _id: 'carine' }] }),
+      { _id: 'carine', firstName: 'c', parents: [], children: [], spouses: ['jean'] }
+    ]);
+
+    expect(people.find((p) => p._id === 'jean').formerSpouses).toEqual(['carine']);
+    expect(people.find((p) => p._id === 'carine').formerSpouses).toEqual(['jean']);
+  });
+});
