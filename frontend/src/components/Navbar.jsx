@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import SearchBox from './SearchBox';
 
 const Navbar = () => {
   const { t } = useTranslation();
@@ -34,10 +35,12 @@ const Navbar = () => {
       >
         {open ? '✕' : '☰'}
       </button>
+      {user && <SearchBox />}
       <div className="nav-links">
         <Link to="/dashboard">{t('dashboard')}</Link>
         <Link to="/tree">{t('familyTree')}</Link>
         <Link to="/people">{t('allPeople')}</Link>
+        <Link to="/timeline">{t('timeline', 'Timeline')}</Link>
         <Link to="/relationship">{t('relationshipFinder')}</Link>
         {isAdmin && <Link to="/admin">{t('adminPanel')}</Link>}
       </div>

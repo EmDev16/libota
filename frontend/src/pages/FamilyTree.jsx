@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { treeAPI, IMAGE_BASE_URL } from '../api';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
@@ -167,6 +167,7 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
 const FamilyTree = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin } = useAuth();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -196,6 +197,18 @@ const FamilyTree = () => {
       setEdges(flowEdges);
     }
   }, [people, treeStyle, rootPersonId, setNodes, setEdges, t]);
+
+  // Coming from the search box or the timeline (/tree?person=<id>): open that person's card
+  const personFromLink = searchParams.get('person');
+  useEffect(() => {
+    if (!personFromLink || people.length === 0) return;
+    const found = people.find((p) => String(p._id) === personFromLink);
+    if (found) {
+      setSelectedPerson(found);
+      setShowModal(true);
+    }
+    setSearchParams({}, { replace: true });
+  }, [personFromLink, people, setSearchParams]);
 
   const loadTree = async () => {
     try {
