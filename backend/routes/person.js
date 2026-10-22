@@ -114,8 +114,8 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// Create person (all authenticated users can add)
-router.post('/', auth, uploadPhoto, async (req, res) => {
+// Create person (admin only: members can only look)
+router.post('/', adminAuth, uploadPhoto, async (req, res) => {
   let newPhoto = null;
   let saved = false;
 
@@ -180,8 +180,8 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
   }
 });
 
-// Update person (admin only, or creator if member)
-router.put('/:id', auth, uploadPhoto, async (req, res) => {
+// Update person (admin only)
+router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
   let newPhoto = null;
   let saved = false;
 
@@ -190,13 +190,6 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
 
     if (!person) {
       return res.status(404).json({ error: 'Person not found' });
-    }
-
-    // Check permissions (before anything is stored)
-    const currentUserId = String(getUserId(req));
-    const creatorId = person.createdBy ? person.createdBy.toString() : '';
-    if (req.user.role !== 'admin' && creatorId !== currentUserId) {
-      return res.status(403).json({ error: 'Not authorized to update this person' });
     }
 
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;

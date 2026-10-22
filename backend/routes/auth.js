@@ -115,8 +115,9 @@ router.get('/me', auth, (req, res) => {
   });
 });
 
-// Change your own password. Every older login stops working; the answer holds a fresh token.
-router.put('/password', auth, async (req, res) => {
+// Change your own password (admins only: one member account can be shared by several people).
+// Every older login stops working; the answer holds a fresh token.
+router.put('/password', adminAuth, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 

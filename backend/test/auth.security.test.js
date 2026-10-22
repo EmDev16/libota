@@ -126,6 +126,14 @@ describe('auth security', () => {
       assert.equal((await change(adminToken, { currentPassword: 'Secret123', newPassword: 'Secret123' })).status, 400);
     });
 
+    it('is refused for members (a member account can be shared)', async () => {
+      const maria = await createUser('maria', 'member', 'Secret123');
+      const res = await change(tokenFor(maria), { currentPassword: 'Secret123', newPassword: 'Brandnew456' });
+
+      assert.equal(res.status, 403);
+      assert.equal((await login({ username: 'maria', password: 'Secret123' })).status, 200);
+    });
+
     it('needs a login', async () => {
       const res = await request(app)
         .put('/api/auth/password')

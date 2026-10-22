@@ -20,10 +20,12 @@ const Dashboard = () => {
           <h2>{t('allPeople')}</h2>
           <p>{t('viewList')}</p>
         </div>
-        <div className="dashboard-card" onClick={() => navigate('/people/new')}>
-          <h2>{t('addPerson')}</h2>
-          <p>{t('createSuccess')}</p>
-        </div>
+        {isAdmin && (
+          <div className="dashboard-card" onClick={() => navigate('/people/new')}>
+            <h2>{t('addPerson')}</h2>
+            <p>{t('createSuccess')}</p>
+          </div>
+        )}
         <div className="dashboard-card" onClick={() => navigate('/relationship')}>
           <h2>{t('relationshipFinder')}</h2>
           <p>{t('findRelationship')}</p>

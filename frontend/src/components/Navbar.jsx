@@ -42,7 +42,8 @@ const Navbar = () => {
         {isAdmin && <Link to="/admin">{t('adminPanel')}</Link>}
       </div>
       <div className="nav-user">
-        <Link to="/account">{user?.username}</Link>
+        {/* members share an account, so only admins get the account page */}
+        {isAdmin ? <Link to="/account">{user?.username}</Link> : <span>{user?.username}</span>}
         <button onClick={handleLogout} className="btn-logout">
           {t('logout')}
         </button>

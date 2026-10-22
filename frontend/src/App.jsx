@@ -67,7 +67,7 @@ const AppContent = () => {
             <Route
               path="/people/new"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <PersonForm />
                 </ProtectedRoute>
               }
@@ -75,7 +75,7 @@ const AppContent = () => {
             <Route
               path="/people/:id/edit"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <PersonForm />
                 </ProtectedRoute>
               }
@@ -91,7 +91,7 @@ const AppContent = () => {
             <Route
               path="/account"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute adminOnly>
                   <Account />
                 </ProtectedRoute>
               }

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { treeAPI, IMAGE_BASE_URL } from '../api';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import {
@@ -154,6 +156,8 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
 
 const FamilyTree = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [treeStyle, setTreeStyle] = useState('traditional');
@@ -370,11 +374,16 @@ const FamilyTree = () => {
                   <p><strong>{t('description')}:</strong> {selectedPerson.description}</p>
                 )}
               </div>
-              <div className="modal-actions">
-                <button className="btn-primary">
-                  {t('edit')}
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="modal-actions">
+                  <button
+                    className="btn-primary"
+                    onClick={() => navigate(`/people/${selectedPerson._id}/edit`)}
+                  >
+                    {t('edit')}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

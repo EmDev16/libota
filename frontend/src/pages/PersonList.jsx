@@ -55,12 +55,14 @@ const PersonList = () => {
     <div className="person-list">
       <div className="list-header">
         <h1>{t('allPeople')}</h1>
-        <button
-          className="btn-primary"
-          onClick={() => navigate('/people/new')}
-        >
-          {t('addPerson')}
-        </button>
+        {isAdmin && (
+          <button
+            className="btn-primary"
+            onClick={() => navigate('/people/new')}
+          >
+            {t('addPerson')}
+          </button>
+        )}
       </div>
       <input
         type="text"
@@ -86,22 +88,22 @@ const PersonList = () => {
                 <h3>{person.firstName} {person.lastName}</h3>
                 <p>{person.birthDate ? new Date(person.birthDate).toLocaleDateString() : ''}</p>
               </div>
-              <div className="person-actions">
-                <button
-                  onClick={() => navigate(`/people/${person._id}/edit`)}
-                  className="btn-secondary"
-                >
-                  {t('edit')}
-                </button>
-                {isAdmin && (
+              {isAdmin && (
+                <div className="person-actions">
+                  <button
+                    onClick={() => navigate(`/people/${person._id}/edit`)}
+                    className="btn-secondary"
+                  >
+                    {t('edit')}
+                  </button>
                   <button
                     onClick={() => handleDelete(person._id)}
                     className="btn-danger"
                   >
                     {t('delete')}
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ))
         )}
