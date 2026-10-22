@@ -82,8 +82,7 @@ const Account = () => {
 
         {message && (
           <div
-            className={message.type === 'error' ? 'error' : undefined}
-            style={message.type === 'success' ? { color: '#27ae60', margin: '0.5rem 0' } : undefined}
+            className={message.type === 'error' ? 'error' : 'success'}
           >
             {message.text}
           </div>

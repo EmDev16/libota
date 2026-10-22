@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -7,6 +7,13 @@ const Navbar = () => {
   const { t } = useTranslation();
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [open, setOpen] = useState(false); // phone menu
+
+  // The menu closes by itself after choosing a page
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -14,10 +21,19 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar${open ? ' open' : ''}`}>
       <div className="nav-brand">
         <Link to="/dashboard">{t('appName')}</Link>
       </div>
+      <button
+        type="button"
+        className="nav-toggle"
+        aria-label={t('menu', 'Menu')}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? '✕' : '☰'}
+      </button>
       <div className="nav-links">
         <Link to="/dashboard">{t('dashboard')}</Link>
         <Link to="/tree">{t('familyTree')}</Link>

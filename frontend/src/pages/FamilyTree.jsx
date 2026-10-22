@@ -28,6 +28,8 @@ const edgeTypes = { busEdge: BusEdge };
 
 const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
 
+const isPhone = typeof window !== 'undefined' && window.innerWidth < 600;
+
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
@@ -325,7 +327,12 @@ const FamilyTree = () => {
       {treeStyle === 'modern' ? (
         renderModernView()
       ) : (
-        <TransformWrapper initialScale={1} minScale={0.3} maxScale={3}>
+        // on a phone the tree starts zoomed out, and can be pinched out further
+        <TransformWrapper
+          initialScale={isPhone ? 0.5 : 1}
+          minScale={isPhone ? 0.15 : 0.3}
+          maxScale={3}
+        >
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
             {renderTraditionalView()}
           </TransformComponent>
