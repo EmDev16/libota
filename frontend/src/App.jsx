@@ -10,6 +10,7 @@ import PersonForm from './pages/PersonForm';
 import RelationshipFinder from './pages/RelationshipFinder';
 import AdminPanel from './pages/AdminPanel';
 import Account from './pages/Account';
+import Timeline from './pages/Timeline';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -77,6 +78,14 @@ const AppContent = () => {
               element={
                 <ProtectedRoute adminOnly>
                   <PersonForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/timeline"
+              element={
+                <ProtectedRoute>
+                  <Timeline />
                 </ProtectedRoute>
               }
             />
