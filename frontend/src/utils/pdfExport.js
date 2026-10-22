@@ -15,6 +15,7 @@ import {
   findUnlinkedPeople,
   MODERN_SIZES
 } from './treeLayout';
+import { calculateGraphLayout } from './graphLayout';
 
 const PAPER = { a4: [595.28, 841.89], a3: [841.89, 1190.55] }; // portrait, in points
 const MAX_PAGE = 14400; // largest page size PDF viewers support (200 inches)
@@ -340,7 +341,7 @@ function drawLayout(doc, layout, view, photos, cull) {
       const isDot = a.type === 'unionNode';
       const sx = isDot ? a.position.x + DOT / 2 : a.position.x + W / 2;
       const sy = isDot ? a.position.y + DOT : a.position.y + H;
-      const tx = b.position.x + W / 2;
+      const tx = b.type === 'unionNode' ? b.position.x + DOT / 2 : b.position.x + W / 2;
       const ty = b.position.y;
       const midY = sy + (ty - sy) / 2;
       segment(sx, sy, sx, midY);
@@ -579,7 +580,8 @@ export async function planFamilyPdf(people, options) {
       });
     }
   } else {
-    const layout = calculateModernLayout(familyTree, unlinked, unlinkedLabel);
+    // One page or tiles: every person once, with the parents above them
+    const layout = calculateGraphLayout(linked, unlinked, unlinkedLabel);
     const subtitle = `${scopeText} - ${countPeople(layout)} people`;
 
     if (pageMode === 'tiles') {

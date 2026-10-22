@@ -732,7 +732,7 @@ export function calculateTraditionalLayoutFromRoot(people, rootPersonId) {
 /**
  * Get ancestors and descendants of a person (includes spouses)
  */
-function getAncestorsAndDescendants(people, rootId, levels) {
+export function getAncestorsAndDescendants(people, rootId, levels) {
   const peopleMap = new Map(people.map(p => [p._id, p]));
   const rootLevel = levels.get(rootId) || 0;
   const relevantIds = new Set();

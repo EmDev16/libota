@@ -15,13 +15,8 @@ import '@xyflow/react/dist/style.css';
 import PersonNode from '../components/PersonNode';
 import { UnionNode, LabelNode } from '../components/TreeNodes';
 import ExportPdfModal from '../components/ExportPdfModal';
-import {
-  normalizeRelationships,
-  calculateTraditionalLayout,
-  calculateModernLayout,
-  findUnlinkedPeople,
-  LINK_COLORS
-} from '../utils/treeLayout';
+import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
+import { calculateGraphLayoutFor } from '../utils/graphLayout';
 
 const nodeTypes = {
   personNode: PersonNode,
@@ -31,30 +26,11 @@ const nodeTypes = {
 
 const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
 
-// Shared by both views: the family tree for the whole family or for one selected person,
-// plus the people who have no links at all (shown separately)
-const buildTree = (people, rootPersonId) => {
-  const unlinked = findUnlinkedPeople(people);
-  const unlinkedIds = new Set(unlinked.map(p => p._id));
-  const linkedPeople = people.filter(p => !unlinkedIds.has(p._id));
-  return {
-    familyTree: calculateTraditionalLayout(linkedPeople, rootPersonId || null),
-    unlinked
-  };
-};
-
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
-// `alsoWith` is set for a reference card: this person is drawn in full in another family
-// (next to their partner), and only repeated here so this family stays complete.
-const PersonCard = ({ person, onClick, alsoWith = null }) => (
-  <div
-    className={`pedigree-card${alsoWith ? ' pedigree-card--reference' : ''}`}
-    style={alsoWith ? { borderStyle: 'dashed', opacity: 0.75 } : undefined}
-    title={alsoWith ? 'Also shown with their own family elsewhere in the tree' : undefined}
-    onClick={() => onClick(person)}
-  >
+const PersonCard = ({ person, onClick, style }) => (
+  <div className="pedigree-card" style={style} onClick={() => onClick(person)}>
     {person.photo && (
       <img
         src={`${IMAGE_BASE_URL}${person.photo}`}
@@ -68,111 +44,90 @@ const PersonCard = ({ person, onClick, alsoWith = null }) => (
         {getYear(person.birthDate) || '?'}
         {person.deathDate ? ` - ${getYear(person.deathDate)}` : ''}
       </p>
-      {alsoWith && (
-        <p className="pedigree-lifespan" style={{ fontStyle: 'italic' }}>
-          {alsoWith.length > 0
-            ? `with ${alsoWith.map(p => p.firstName).join(', ')}`
-            : 'see other branch'}
-        </p>
-      )}
     </div>
   </div>
 );
 
-// Children hanging under a couple (or under one link of a person with several partners)
-const ChildrenRow = ({ nodes, onPersonClick, color }) => (
-  <div className="children-row" style={{ '--union-color': color || '#3498db' }}>
-    <div className="children-connector-line" />
-    <div className="children-container">
-      {nodes.map((childNode, i) => (
-        <FamilyNode
-          key={`${childNode.couple[0]._id}-${i}`}
-          familyNode={childNode}
-          onPersonClick={onPersonClick}
-        />
-      ))}
-    </div>
-  </div>
-);
-
-// A person / couple / person with several partners, with all of their children underneath
-const FamilyNode = ({ familyNode, onPersonClick }) => {
-  const { couple, links, children, referenceWith = {}, reference } = familyNode;
-  // What to pass to a card so it is drawn as a reference (a person drawn in full elsewhere)
-  const refInfo = (person) => {
-    if (reference) return reference.with || [];
-    return (familyNode.referenceIds || []).includes(person._id) ? referenceWith[person._id] || [] : null;
-  };
-
-  // Several partnerships: cards and links share one grid, so every group of
-  // children sits exactly under the link between its two parents
-  if (links.length > 1) {
-    return (
-      <div className="family-node-wrapper">
-        <div
-          className="family-grid"
-          style={{ gridTemplateColumns: `repeat(${couple.length * 2 - 1}, auto)` }}
-        >
-          {couple.map((person, i) => {
-            const link = links[i];
-            const color = LINK_COLORS[i % LINK_COLORS.length];
-            const hasKids = !!link && link.children.length > 0;
-
-            return (
-              <React.Fragment key={person._id}>
-                <div className="grid-card" style={{ gridColumn: i * 2 + 1, gridRow: 1 }}>
-                  <PersonCard person={person} onClick={onPersonClick} alsoWith={refInfo(person)} />
-                </div>
-
-                {link && (
-                  <div
-                    className="link-cell"
-                    style={{
-                      gridColumn: i * 2 + 2,
-                      gridRow: 1,
-                      '--link-color': color,
-                      '--union-color': color
-                    }}
-                  >
-                    <div className="link-horizontal" />
-                    {hasKids && <div className="link-vertical" />}
-                  </div>
-                )}
-
-                {hasKids && (
-                  <div className="grid-children" style={{ gridColumn: i * 2 + 2, gridRow: 2 }}>
-                    <ChildrenRow
-                      nodes={link.children}
-                      onPersonClick={onPersonClick}
-                      color={color}
-                    />
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // One person, or one couple
-  const kids = links.length === 1 ? links[0].children : children;
+// The traditional view: the same positions as the modern view (every person once, parents above,
+// partners side by side), drawn as cards with square lines
+const TraditionalTree = ({ layout, onPersonClick }) => {
+  const PAD = 40;
+  const { nodes, geometry, size } = layout;
+  const { NODE_W, NODE_H, ROW_GAP } = MODERN_SIZES;
 
   return (
-    <div className="family-node-wrapper">
-      <div className="couple-row">
-        {couple.map((person, idx) => (
-          <React.Fragment key={person._id}>
-            {idx > 0 && <div className="spouse-connector" />}
-            <PersonCard person={person} onClick={onPersonClick} alsoWith={refInfo(person)} />
-          </React.Fragment>
-        ))}
-      </div>
+    <div className="traditional-tree-view">
+      <div
+        className="family-tree-structure"
+        style={{ position: 'relative', width: size.width + PAD * 2, height: size.height + PAD * 2 }}
+      >
+        <svg
+          width={size.width + PAD * 2}
+          height={size.height + PAD * 2}
+          style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
+        >
+          <g transform={`translate(${PAD},${PAD})`} fill="none" strokeLinejoin="round">
+            {geometry.children.map((line, i) => {
+              const midY = line.to.y - ROW_GAP / 2;
+              return (
+                <path
+                  key={i}
+                  d={`M ${line.from.x} ${line.from.y} V ${midY} H ${line.to.x} V ${line.to.y}`}
+                  stroke={line.color}
+                  strokeWidth="2"
+                />
+              );
+            })}
+            {geometry.unions.map((u) => (
+              <g key={u.id}>
+                {u.around ? (
+                  <path
+                    d={`M ${u.around[0].x} ${u.around[0].y} V ${u.dot.y} H ${u.around[1].x} V ${u.around[1].y}`}
+                    stroke={u.color}
+                    strokeWidth="3"
+                  />
+                ) : (
+                  <line x1={u.from.x} y1={u.from.y} x2={u.to.x} y2={u.to.y} stroke={u.color} strokeWidth="3" />
+                )}
+                <circle cx={u.dot.x} cy={u.dot.y} r="7" fill={u.color} stroke="#fff" strokeWidth="2" />
+              </g>
+            ))}
+          </g>
+        </svg>
 
-      {kids && kids.length > 0 && (
-        <ChildrenRow nodes={kids} onPersonClick={onPersonClick} />
-      )}
+        {nodes.map((node) => {
+          if (node.type === 'labelNode') {
+            return (
+              <h3
+                key={node.id}
+                className="generation-label"
+                style={{ position: 'absolute', left: node.position.x + PAD, top: node.position.y + PAD, margin: 0 }}
+              >
+                {node.data.label}
+              </h3>
+            );
+          }
+          if (node.type !== 'personNode') return null;
+          return (
+            <div
+              key={node.id}
+              style={{
+                position: 'absolute',
+                left: node.position.x + PAD,
+                top: node.position.y + PAD,
+                width: NODE_W,
+                height: NODE_H
+              }}
+            >
+              <PersonCard
+                person={node.data.person}
+                onClick={onPersonClick}
+                style={{ width: '100%', height: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -198,10 +153,9 @@ const FamilyTree = () => {
 
   useEffect(() => {
     if (people.length > 0 && treeStyle === 'modern') {
-      const { familyTree, unlinked } = buildTree(people, rootPersonId);
-      const { nodes: flowNodes, edges: flowEdges } = calculateModernLayout(
-        familyTree,
-        rootPersonId ? [] : unlinked,
+      const { nodes: flowNodes, edges: flowEdges } = calculateGraphLayoutFor(
+        people,
+        rootPersonId,
         t('unlinkedMembers', 'Unlinked Members')
       );
       setNodes(flowNodes);
@@ -337,32 +291,8 @@ const FamilyTree = () => {
 
   const renderTraditionalView = () => {
     try {
-      const { familyTree, unlinked } = buildTree(people, rootPersonId);
-
-      return (
-        <div className="traditional-tree-view">
-          <div className="family-tree-structure">
-            {familyTree.map((familyNode) => (
-              <FamilyNode
-                key={familyNode.couple[0]._id}
-                familyNode={familyNode}
-                onPersonClick={openPerson}
-              />
-            ))}
-          </div>
-
-          {!rootPersonId && unlinked.length > 0 && (
-            <div className="unlinked-section">
-              <h3 className="generation-label">Unlinked Members</h3>
-              <div className="generation-couples">
-                {unlinked.map((person) => (
-                  <PersonCard key={person._id} person={person} onClick={openPerson} />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      );
+      const layout = calculateGraphLayoutFor(people, rootPersonId, t('unlinkedMembers', 'Unlinked Members'));
+      return <TraditionalTree layout={layout} onPersonClick={openPerson} />;
     } catch (error) {
       console.error('Error rendering traditional view:', error);
       return <div className="error">Error rendering tree: {error.message}</div>;
