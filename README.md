@@ -20,7 +20,6 @@ Libota is a private family tree website. Relatives log in, browse the tree, look
 - [How the main parts work](#how-the-main-parts-work)
 - [Troubleshooting](#troubleshooting)
 - [Working on the project](#working-on-the-project)
-- [Roadmap](#roadmap)
 
 ## What it can do
 - **Two tree views.** The traditional view shows couples with their children underneath. The modern view is an interactive canvas (zoom, pan, minimap). Both handle several partners per person: the children are grouped under the right partnership, shown in different colours.
