@@ -1619,3 +1619,5 @@ small { color: var(--muted); }
   .navbar.open .nav-user { order: 4; }
   .search-results { position: static; margin-top: 4px; max-height: 50vh; }
 }
+
+.wake-note { background: var(--copper-tint); border: 1px solid var(--copper-line); color: var(--ink); padding: 0.6rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 0.9rem; }
