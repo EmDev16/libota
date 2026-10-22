@@ -329,6 +329,8 @@ function drawLayout(doc, layout, view, photos, cull) {
 
     doc.setDrawColor(e.style.stroke);
     doc.setLineWidth(Math.max(e.style.strokeWidth * s, 0.7));
+    // A relationship that has ended is a dashed line
+    if (e.style.strokeDasharray) doc.setLineDashPattern([8 * s, 5 * s], 0);
 
     if (e.type === 'straight') {
       // between a person and the union dot of a partnership
@@ -343,11 +345,12 @@ function drawLayout(doc, layout, view, photos, cull) {
       const sy = isDot ? a.position.y + DOT : a.position.y + H;
       const tx = b.type === 'unionNode' ? b.position.x + DOT / 2 : b.position.x + W / 2;
       const ty = b.position.y;
-      const midY = sy + (ty - sy) / 2;
+      const midY = e.data?.busY ?? sy + (ty - sy) / 2;
       segment(sx, sy, sx, midY);
       if (sx !== tx) segment(sx, midY, tx, midY);
       segment(tx, midY, tx, ty);
     }
+    if (e.style.strokeDasharray) doc.setLineDashPattern([], 0);
   });
 
   layout.nodes.forEach((n) => {
@@ -355,8 +358,8 @@ function drawLayout(doc, layout, view, photos, cull) {
 
     if (n.type === 'unionNode') {
       if (!visible(x, y, x + DOT, y + DOT)) return;
-      doc.setFillColor(n.data.color);
-      doc.setDrawColor('#ffffff');
+      doc.setFillColor(n.data.ended ? '#ffffff' : n.data.color);
+      doc.setDrawColor(n.data.ended ? n.data.color : '#ffffff');
       doc.setLineWidth(Math.max(1.5 * s, 0.6));
       doc.circle(px(x + DOT / 2), py(y + DOT / 2), Math.max((DOT / 2) * s, 2), 'FD');
       return;

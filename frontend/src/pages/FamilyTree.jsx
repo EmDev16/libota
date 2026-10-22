@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PersonNode from '../components/PersonNode';
-import { UnionNode, LabelNode } from '../components/TreeNodes';
+import { UnionNode, LabelNode, BusEdge } from '../components/TreeNodes';
 import ExportPdfModal from '../components/ExportPdfModal';
 import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
 import { calculateGraphLayoutFor } from '../utils/graphLayout';
@@ -23,6 +23,8 @@ const nodeTypes = {
   unionNode: UnionNode,
   labelNode: LabelNode
 };
+
+const edgeTypes = { busEdge: BusEdge };
 
 const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
 
@@ -68,7 +70,7 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
         >
           <g transform={`translate(${PAD},${PAD})`} fill="none" strokeLinejoin="round">
             {geometry.children.map((line, i) => {
-              const midY = line.to.y - ROW_GAP / 2;
+              const midY = line.busY ?? line.to.y - ROW_GAP / 2;
               return (
                 <path
                   key={i}
@@ -85,11 +87,27 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
                     d={`M ${u.around[0].x} ${u.around[0].y} V ${u.dot.y} H ${u.around[1].x} V ${u.around[1].y}`}
                     stroke={u.color}
                     strokeWidth="3"
+                    strokeDasharray={u.ended ? '8 5' : undefined}
                   />
                 ) : (
-                  <line x1={u.from.x} y1={u.from.y} x2={u.to.x} y2={u.to.y} stroke={u.color} strokeWidth="3" />
+                  <line
+                    x1={u.from.x}
+                    y1={u.from.y}
+                    x2={u.to.x}
+                    y2={u.to.y}
+                    stroke={u.color}
+                    strokeWidth="3"
+                    strokeDasharray={u.ended ? '8 5' : undefined}
+                  />
                 )}
-                <circle cx={u.dot.x} cy={u.dot.y} r="7" fill={u.color} stroke="#fff" strokeWidth="2" />
+                <circle
+                  cx={u.dot.x}
+                  cy={u.dot.y}
+                  r="7"
+                  fill={u.ended ? '#fff' : u.color}
+                  stroke={u.ended ? u.color : '#fff'}
+                  strokeWidth="2"
+                />
               </g>
             ))}
           </g>
@@ -261,6 +279,7 @@ const FamilyTree = () => {
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             nodesConnectable={false}
             minZoom={0.1}
             maxZoom={2}

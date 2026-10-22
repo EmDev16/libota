@@ -289,6 +289,124 @@ describe('calculateGraphLayout', () => {
     });
   });
 
+  describe('the lines down to the children', () => {
+    const M = MODERN_SIZES;
+
+    // For every family (partnership or lone parent): where its line starts and ends sideways
+    const busesOf = (layout) => {
+      const nodes = new Map(layout.nodes.map((n) => [n.id, n]));
+      const middle = (n) => n.position.x + (n.type === 'unionNode' ? M.DOT : M.NODE_W) / 2;
+      const buses = new Map();
+      childEdges(layout).forEach((e) => {
+        if (!buses.has(e.source)) buses.set(e.source, { id: e.source, xs: [], busY: e.data.busY, color: e.style.stroke });
+        const bus = buses.get(e.source);
+        bus.xs.push(middle(nodes.get(e.source)), middle(nodes.get(e.target)));
+        expect(e.data.busY).toBe(bus.busY); // one height per family
+        bus.top = nodes.get(e.source).position.y;
+        bus.bottom = Math.min(bus.bottom ?? Infinity, nodes.get(e.target).position.y);
+      });
+      return [...buses.values()].map((b) => ({ ...b, left: Math.min(...b.xs), right: Math.max(...b.xs) }));
+    };
+
+    it('gives families whose lines would overlap different heights (fake family)', () => {
+      const layout = layoutOf(fakeFamily.people || fakeFamily);
+      const buses = busesOf(layout);
+
+      for (let i = 0; i < buses.length; i++) {
+        for (let j = i + 1; j < buses.length; j++) {
+          const a = buses[i];
+          const b = buses[j];
+          const sameGap = a.top === b.top;
+          const overlap = a.left <= b.right && b.left <= a.right;
+          if (sameGap && overlap) expect(a.busY).not.toBe(b.busY);
+        }
+      }
+    });
+
+    it('runs every family line between the parents and the children', () => {
+      busesOf(layoutOf(fakeFamily.people || fakeFamily)).forEach((bus) => {
+        expect(bus.busY).toBeGreaterThan(bus.top);
+        expect(bus.busY).toBeLessThan(bus.bottom);
+      });
+    });
+
+    it('colours neighbouring families differently, and uses the family colour for the partners too', () => {
+      const layout = layoutOf(fakeFamily.people || fakeFamily);
+      const unions = layout.nodes.filter((n) => n.type === 'unionNode');
+      const dotOf = new Map(unions.map((u) => [u.id, u.data.color]));
+
+      // the line to a child has the colour of its parents' dot
+      childEdges(layout)
+        .filter((e) => dotOf.has(e.source))
+        .forEach((e) => expect(e.style.stroke).toBe(dotOf.get(e.source)));
+
+      // Léonie+Pierre and Thérèse+Antoine are two families in one row: not the same colour
+      const colour = (a, b) => dotOf.get(`union-${a}-${b}`) || dotOf.get(`union-${b}-${a}`);
+      expect(colour('p03', 'p08')).not.toBe(colour('p04', 'p09'));
+    });
+  });
+
+  describe('ended relationships and the order of partners', () => {
+    // Jean was married to Carine (ended), now to Rose. His list says Rose first on purpose.
+    const jeanTwice = () => [
+      person('jean', { spouses: ['rose', 'carine'], formerSpouses: ['carine'] }),
+      person('carine', { gender: 'female', spouses: ['jean'], formerSpouses: ['jean'] }),
+      person('rose', { gender: 'female', spouses: ['jean'] })
+    ];
+
+    it('puts the partner of an ended relationship first and the current partner last', () => {
+      const layout = layoutOf(jeanTwice());
+      const x = (id) => cardOf(layout, id).position.x;
+
+      expect(x('carine')).toBeLessThan(x('jean'));
+      expect(x('jean')).toBeLessThan(x('rose'));
+    });
+
+    it('keeps the order of the relationships when nothing has ended', () => {
+      const layout = layoutOf([
+        person('jean', { spouses: ['carine', 'rose'] }),
+        person('carine', { gender: 'female', spouses: ['jean'] }),
+        person('rose', { gender: 'female', spouses: ['jean'] })
+      ]);
+      const x = (id) => cardOf(layout, id).position.x;
+
+      expect(x('carine')).toBeLessThan(x('jean'));
+      expect(x('jean')).toBeLessThan(x('rose'));
+    });
+
+    it('marks an ended relationship: dashed line, empty dot, and the same for the traditional view', () => {
+      const layout = layoutOf(jeanTwice());
+      const ended = layout.nodes.find((n) => n.id === 'union-carine-jean' || n.id === 'union-jean-carine');
+      const current = layout.nodes.find((n) => n.id === 'union-jean-rose' || n.id === 'union-rose-jean');
+
+      expect(ended.data.ended).toBe(true);
+      expect(current.data.ended).toBe(false);
+
+      const lineOf = (union) => layout.edges.find((e) => e.target === union.id);
+      expect(lineOf(ended).style.strokeDasharray).toBeTruthy();
+      expect(lineOf(current).style.strokeDasharray).toBe(undefined);
+
+      expect(layout.geometry.unions.filter((u) => u.ended)).toHaveLength(1);
+    });
+
+    it('never turns a row of three around, so the order stays readable', () => {
+      // Both of Jean's partners come from families in the tree, which tempts the layout to turn the row
+      const layout = expectSoundLayout([
+        person('p1', { spouses: ['p2'], children: ['carine'] }),
+        person('p2', { gender: 'female', spouses: ['p1'], children: ['carine'] }),
+        person('q1', { spouses: ['q2'], children: ['rose'] }),
+        person('q2', { gender: 'female', spouses: ['q1'], children: ['rose'] }),
+        person('carine', { gender: 'female', parents: ['p1', 'p2'], spouses: ['jean'], formerSpouses: ['jean'] }),
+        person('rose', { gender: 'female', parents: ['q1', 'q2'], spouses: ['jean'] }),
+        person('jean', { spouses: ['carine', 'rose'], formerSpouses: ['carine'] })
+      ]);
+      const x = (id) => cardOf(layout, id).position.x;
+
+      expect(x('carine')).toBeLessThan(x('jean'));
+      expect(x('jean')).toBeLessThan(x('rose'));
+    });
+  });
+
   describe('the lines for the traditional view', () => {
     it('has one line to every child and one for every partnership', () => {
       const layout = layoutOf(twoFamiliesMeet());

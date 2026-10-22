@@ -11,7 +11,6 @@
  * plus `geometry` (the same lines as plain coordinates, for the traditional view) and `size`.
  */
 import {
-  LINK_COLORS,
   MODERN_SIZES,
   calculateGenerationalLevels,
   findUnlinkedPeople,
@@ -23,8 +22,15 @@ const PITCH = M.NODE_W + M.PARTNER_GAP; // distance between two partners' left s
 const UNIT_GAP = 60; // free space between two rows-of-partners on one generation
 const PASSES = 24;
 const ORDER_SWEEPS = 12;
-const UNION_COLOR = '#e74c3c';
-const CHILD_COLOR = '#3498db';
+// Line colours of the families (not the red and blue of the cards, which mean female and male)
+const FAMILY_COLORS = ['#8e44ad', '#16a085', '#e67e22', '#27ae60', '#d6336c', '#2c82c9', '#a0522d', '#7f8c00'];
+
+// The horizontal line of a family's children: where it starts under the parents' row, how far
+// apart the heights of overlapping families are, and how close it may come to the children
+const BUS_START = 26;
+const BUS_STEP = 14;
+const BUS_END = 22;
+const BUS_MARGIN = 12; // two buses closer than this (sideways) get different heights
 
 const birthTime = p => (p.birthDate ? new Date(p.birthDate).getTime() : Infinity);
 const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
@@ -33,7 +39,14 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   const byId = new Map(people.map(p => [p._id, p]));
   const inputIndex = new Map(people.map((p, i) => [p._id, i]));
   const known = ids => [...new Set(ids || [])].filter(id => byId.has(id));
-  const partnersOf = id => known(byId.get(id).spouses).filter(other => other !== id);
+  const hasEnded = (a, b) =>
+    (byId.get(a).formerSpouses || []).includes(b) || (byId.get(b).formerSpouses || []).includes(a);
+  // Partners in the order of the relationships (the order of `spouses`), except that a partner
+  // whose relationship has ended always comes before the current partner
+  const partnersOf = id => {
+    const all = known(byId.get(id).spouses).filter(other => other !== id);
+    return [...all.filter(other => hasEnded(id, other)), ...all.filter(other => !hasEnded(id, other))];
+  };
   const parentsOf = id => known(byId.get(id).parents).filter(other => other !== id);
   const kidsOf = id => known(byId.get(id).children).filter(other => other !== id);
 
@@ -115,7 +128,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
       });
     });
     pairs.sort((p, q) => indexIn.get(p[0]) - indexIn.get(q[0]) || indexIn.get(p[1]) - indexIn.get(q[1]));
-    pairs.forEach(([a, b], i) => {
+    pairs.forEach(([a, b]) => {
       unions.set(pairKey(a, b), {
         id: `union-${a}-${b}`,
         a,
@@ -124,7 +137,8 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
         ib: indexIn.get(b),
         unit,
         adjacent: indexIn.get(b) - indexIn.get(a) === 1,
-        color: unit.members.length > 2 ? LINK_COLORS[i % LINK_COLORS.length] : UNION_COLOR,
+        ended: hasEnded(a, b),
+        color: null, // chosen once all positions are known
         kids: []
       });
     });
@@ -255,9 +269,13 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     });
   };
 
+  // A row of three or more has a meaning (first partner, person, latest partner), so only a
+  // couple can be turned around
+  const canFlip = unit => unit.members.length === 2;
+
   const flipIfBetter = unit => {
     const n = unit.members.length;
-    if (n < 2) return;
+    if (!canFlip(unit)) return;
     let now = 0;
     let flipped = 0;
     unit.members.forEach((id, i) => {
@@ -356,7 +374,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
       rows.forEach((row, level) => {
         // turn a unit around
         row.forEach(unit => {
-          if (unit.members.length < 2) return;
+          if (!canFlip(unit)) return;
           const before = crossingsAround(level);
           flipUnit(unit);
           if (crossingsAround(level) < before) improved = true;
@@ -414,7 +432,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     };
 
     units
-      .filter(unit => unit.members.filter(id => parentsOf(id).length > 0).length >= 2)
+      .filter(unit => canFlip(unit) && unit.members.filter(id => parentsOf(id).length > 0).length >= 2)
       .forEach(unit => {
         const before = totalCrossings();
         if (before === 0) return;
@@ -463,24 +481,41 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   const topOf = id => ({ x: centerOf(id), y: rowTop(unitOf.get(id).level) });
   const bottomOf = id => ({ x: centerOf(id), y: rowTop(unitOf.get(id).level) + M.NODE_H });
 
+  // Where every partnership's dot sits
   const unionPoint = new Map();
   unions.forEach(u => {
     const top = rowTop(u.unit.level);
-    const x = unionX(u);
     // next to each other: the dot sits between the cards; otherwise just below the row
     const y = u.adjacent ? top + M.NODE_H / 2 : top + M.NODE_H + 28;
-    unionPoint.set(u, { x, y });
+    unionPoint.set(u, { x: unionX(u), y });
+  });
+
+  // Every family (a partnership, or a parent on their own) gets its own colour, handed out from
+  // left to right, so neighbouring families never look alike and the dot, the lines between the
+  // partners and the lines down to the children all match
+  const familyKeys = [];
+  unions.forEach(u => familyKeys.push({ key: u.id, level: u.unit.level, x: unionPoint.get(u).x }));
+  const lone = new Set();
+  sourcesOf.forEach(sources => sources.forEach(s => s.person && lone.add(s.person)));
+  lone.forEach(id => familyKeys.push({ key: id, level: unitOf.get(id).level, x: centerOf(id) }));
+  familyKeys.sort((a, b) => a.level - b.level || a.x - b.x);
+  const colorOf = new Map(familyKeys.map((f, i) => [f.key, FAMILY_COLORS[i % FAMILY_COLORS.length]]));
+  unions.forEach(u => (u.color = colorOf.get(u.id)));
+
+  unions.forEach(u => {
+    const { x, y } = unionPoint.get(u);
 
     nodes.push({
       id: u.id,
       type: 'unionNode',
       position: { x: x - M.DOT / 2, y: y - M.DOT / 2 },
-      data: { color: u.color },
+      data: { color: u.color, ended: u.ended },
       draggable: false,
       selectable: false
     });
 
-    const lineStyle = { stroke: u.color, strokeWidth: 3 };
+    // A relationship that has ended is drawn with a dashed line and an empty dot
+    const lineStyle = { stroke: u.color, strokeWidth: 3, ...(u.ended ? { strokeDasharray: '8 5' } : {}) };
     if (u.adjacent) {
       edges.push({
         id: `${u.id}-left`,
@@ -503,6 +538,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
       geometry.unions.push({
         id: u.id,
         color: u.color,
+        ended: u.ended,
         dot: { x, y },
         from: { x: centerOf(u.a) + M.NODE_W / 2, y },
         to: { x: centerOf(u.b) - M.NODE_W / 2, y }
@@ -529,31 +565,72 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
       geometry.unions.push({
         id: u.id,
         color: u.color,
+        ended: u.ended,
         dot: { x, y },
         around: [bottomOf(u.a), bottomOf(u.b)]
       });
     }
   });
 
+  // Lines down to the children. All the children of one family share one horizontal line (a "bus").
+  // Families whose buses would overlap get a different height, so you can follow each one.
+  const buses = new Map(); // family key -> { sourceId, color, from, level, targets: [{ childId, to }] }
   sourcesOf.forEach((sources, childId) => {
     sources.forEach(source => {
-      const sourceId = source.union ? source.union.id : source.person;
-      const color = source.union ? source.union.color : CHILD_COLOR;
-      const from = source.union ? unionPoint.get(source.union) : bottomOf(source.person);
-      const to = topOf(childId);
-      // Lines leave a union dot from its bottom
-      const start = source.union ? { x: from.x, y: from.y + M.DOT / 2 } : from;
+      const key = source.union ? source.union.id : source.person;
+      if (!buses.has(key)) {
+        const from = source.union ? unionPoint.get(source.union) : bottomOf(source.person);
+        buses.set(key, {
+          key,
+          color: colorOf.get(key),
+          // Lines leave a union dot from its bottom
+          from: source.union ? { x: from.x, y: from.y + M.DOT / 2 } : from,
+          level: source.union ? source.union.unit.level : unitOf.get(source.person).level,
+          targets: []
+        });
+      }
+      buses.get(key).targets.push({ childId, to: topOf(childId) });
+    });
+  });
 
+  const byLevel = new Map();
+  buses.forEach(bus => {
+    bus.left = Math.min(bus.from.x, ...bus.targets.map(t => t.to.x));
+    bus.right = Math.max(bus.from.x, ...bus.targets.map(t => t.to.x));
+    if (!byLevel.has(bus.level)) byLevel.set(bus.level, []);
+    byLevel.get(bus.level).push(bus);
+  });
+
+  byLevel.forEach((list, level) => {
+    // Interval colouring: the first height whose last bus ended before this one starts
+    list.sort((a, b) => a.left - b.left || a.right - b.right);
+    const ends = [];
+    list.forEach(bus => {
+      let lane = ends.findIndex(end => end + BUS_MARGIN < bus.left);
+      if (lane === -1) lane = ends.length;
+      ends[lane] = bus.right;
+      bus.lane = lane;
+    });
+
+    const first = rowTop(level) + M.NODE_H + BUS_START;
+    const lastAllowed = Math.min(...list.flatMap(bus => bus.targets.map(t => t.to.y))) - BUS_END;
+    const step = ends.length > 1 ? Math.min(BUS_STEP, Math.max((lastAllowed - first) / (ends.length - 1), 3)) : 0;
+    list.forEach(bus => (bus.busY = Math.min(first + bus.lane * step, lastAllowed)));
+  });
+
+  buses.forEach(bus => {
+    bus.targets.forEach(({ childId, to }) => {
       edges.push({
-        id: `child-${sourceId}-${childId}`,
-        source: sourceId,
+        id: `child-${bus.key}-${childId}`,
+        source: bus.key,
         sourceHandle: 'bottom',
         target: childId,
         targetHandle: 'top',
-        type: 'smoothstep',
-        style: { stroke: color, strokeWidth: 2 }
+        type: 'busEdge',
+        data: { busY: bus.busY },
+        style: { stroke: bus.color, strokeWidth: 2 }
       });
-      geometry.children.push({ from: start, to, color });
+      geometry.children.push({ from: bus.from, to, color: bus.color, busY: bus.busY });
     });
   });
 
