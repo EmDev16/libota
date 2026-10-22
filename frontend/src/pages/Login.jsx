@@ -19,7 +19,15 @@ const Login = () => {
       await login(username, password, language);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || t('loginFailed'));
+      const status = err.response?.status;
+      if (status === 429) {
+        setError(t('tooManyAttempts', 'Too many attempts. Please wait a few minutes and try again.'));
+      } else if (!err.response) {
+        setError(t('serverUnreachable', 'Cannot reach the server. It may be waking up: wait a moment and try again.'));
+      } else {
+        // The same general message for a wrong password and an unknown user
+        setError(t('loginFailed'));
+      }
     }
   };
 

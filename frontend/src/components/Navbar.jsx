@@ -26,7 +26,7 @@ const Navbar = () => {
         {isAdmin && <Link to="/admin">{t('adminPanel')}</Link>}
       </div>
       <div className="nav-user">
-        <span>{user?.username}</span>
+        <Link to="/account">{user?.username}</Link>
         <button onClick={handleLogout} className="btn-logout">
           {t('logout')}
         </button>

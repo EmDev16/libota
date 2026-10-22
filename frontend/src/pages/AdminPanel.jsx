@@ -60,7 +60,8 @@ const AdminPanel = () => {
       loadUsers();
     } catch (error) {
       console.error('Error adding user:', error);
-      alert(t('error'));
+      // 400 messages are written for people ("Password must be at least 8 characters")
+      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
@@ -71,7 +72,22 @@ const AdminPanel = () => {
         loadUsers();
       } catch (error) {
         console.error('Error deleting user:', error);
+        alert(error.response?.status === 400 ? error.response.data.error : t('error'));
       }
+    }
+  };
+
+  const handleResetPassword = async (user) => {
+    const newPassword = window.prompt(
+      t('resetPasswordPrompt', `New password for ${user.username} (at least 8 characters, with a letter and a number):`)
+    );
+    if (!newPassword) return;
+    try {
+      await authAPI.resetUserPassword(user._id, newPassword);
+      alert(t('passwordResetDone', `Done. ${user.username} must log in again with the new password.`));
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
@@ -252,6 +268,12 @@ const AdminPanel = () => {
                 <span className={`role-badge ${user.role}`}>{user.role}</span>
                 <span className="language-badge">{user.language}</span>
               </div>
+              <button
+                onClick={() => handleResetPassword(user)}
+                className="btn-secondary"
+              >
+                {t('resetPassword', 'Reset password')}
+              </button>
               <button
                 onClick={() => handleDeleteUser(user._id)}
                 className="btn-danger"

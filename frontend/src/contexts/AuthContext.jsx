@@ -33,6 +33,11 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
+  // After a password change the server gives a new token; the old one no longer works
+  const replaceToken = (token) => {
+    localStorage.setItem('token', token);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -42,7 +47,7 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout, replaceToken, loading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

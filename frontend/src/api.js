@@ -23,7 +23,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // A wrong password at login is also a 401: stay on the page so the message can be shown
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -38,6 +40,10 @@ export const authAPI = {
   register: (username, password, role, language) =>
     api.post('/auth/register', { username, password, role, language }),
   getMe: () => api.get('/auth/me'),
+  changePassword: (currentPassword, newPassword) =>
+    api.put('/auth/password', { currentPassword, newPassword }),
+  resetUserPassword: (id, newPassword) =>
+    api.put(`/auth/users/${id}/password`, { newPassword }),
   getUsers: () => api.get('/auth/users'),
   deleteUser: (id) => api.delete(`/auth/users/${id}`)
 };

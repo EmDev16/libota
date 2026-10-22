@@ -9,6 +9,7 @@ import PersonList from './pages/PersonList';
 import PersonForm from './pages/PersonForm';
 import RelationshipFinder from './pages/RelationshipFinder';
 import AdminPanel from './pages/AdminPanel';
+import Account from './pages/Account';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -84,6 +85,14 @@ const AppContent = () => {
               element={
                 <ProtectedRoute>
                   <RelationshipFinder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <ProtectedRoute>
+                  <Account />
                 </ProtectedRoute>
               }
             />
