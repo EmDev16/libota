@@ -50,6 +50,24 @@ const parseIds = (value) => {
   return [];
 };
 
+// formerSpouses can only name people who are spouses, and each person once
+const onlySpouses = (former, spouses) => {
+  const allowed = new Set(spouses.map(String));
+  return [...new Set(former.map(String))].filter((id) => allowed.has(id));
+};
+
+// Keeps the "relationship ended" mark the same on both people of every partnership
+const syncFormerSpouses = async (personId, spouses, former) => {
+  const ended = former.map(String);
+  const current = spouses.map(String).filter((id) => !ended.includes(id));
+  if (ended.length > 0) {
+    await Person.updateMany({ _id: { $in: ended } }, { $addToSet: { formerSpouses: personId } });
+  }
+  if (current.length > 0) {
+    await Person.updateMany({ _id: { $in: current } }, { $pull: { formerSpouses: personId } });
+  }
+};
+
 // Works whether auth middleware sets req.user._id or req.user.id
 const getUserId = (req) => req.user && (req.user._id || req.user.id);
 
@@ -102,12 +120,13 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
   let saved = false;
 
   try {
-    const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses } = req.body;
+    const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;
 
     if (req.file) {
       newPhoto = await savePhoto(req.file);
     }
 
+    const spouseIds = parseIds(spouses);
     const person = new Person({
       firstName,
       lastName,
@@ -117,7 +136,8 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
       description: description || '',
       photo: newPhoto,
       parents: parseIds(parents),
-      spouses: parseIds(spouses),
+      spouses: spouseIds,
+      formerSpouses: onlySpouses(parseIds(formerSpouses), spouseIds),
       createdBy: getUserId(req)
     });
 
@@ -138,6 +158,7 @@ router.post('/', auth, uploadPhoto, async (req, res) => {
         { _id: { $in: person.spouses } },
         { $addToSet: { spouses: person._id } }
       );
+      await syncFormerSpouses(person._id, person.spouses, person.formerSpouses);
     }
 
     const savedPerson = await Person.findById(person._id)
@@ -178,7 +199,7 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to update this person' });
     }
 
-    const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses } = req.body;
+    const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;
 
     if (req.file) {
       newPhoto = await savePhoto(req.file);
@@ -203,12 +224,19 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
 
     await Person.updateMany(
       { _id: { $in: oldSpouses.filter((s) => !newSpouses.includes(s)) } },
-      { $pull: { spouses: person._id } }
+      { $pull: { spouses: person._id, formerSpouses: person._id } }
     );
     await Person.updateMany(
       { _id: { $in: newSpouses.filter((s) => !oldSpouses.includes(s)) } },
       { $addToSet: { spouses: person._id } }
     );
+
+    // Ended relationships: when the form does not send them, what was saved stays as it is
+    const newFormer = onlySpouses(
+      formerSpouses === undefined ? (person.formerSpouses || []).map(String) : parseIds(formerSpouses),
+      newSpouses
+    );
+    await syncFormerSpouses(person._id, newSpouses, newFormer);
 
     person.firstName = firstName || person.firstName;
     person.lastName = lastName || person.lastName;
@@ -218,6 +246,7 @@ router.put('/:id', auth, uploadPhoto, async (req, res) => {
     person.description = description !== undefined ? description : person.description;
     person.parents = newParents;
     person.spouses = newSpouses;
+    person.formerSpouses = newFormer;
 
     const oldPhoto = person.photo;
     if (newPhoto) {
@@ -271,7 +300,7 @@ router.delete('/:id', adminAuth, async (req, res) => {
     if (person.spouses && person.spouses.length > 0) {
       await Person.updateMany(
         { _id: { $in: person.spouses } },
-        { $pull: { spouses: person._id } }
+        { $pull: { spouses: person._id, formerSpouses: person._id } }
       );
     }
 

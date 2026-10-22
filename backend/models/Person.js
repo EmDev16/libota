@@ -38,6 +38,12 @@ const personSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Person'
   }],
+  // Partners from `spouses` whose relationship has ended (divorce, separation).
+  // The order of `spouses` is the order of the relationships: first partner first.
+  formerSpouses: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Person'
+  }],
   children: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Person'

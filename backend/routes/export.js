@@ -31,6 +31,7 @@ router.get('/json', adminAuth, async (req, res) => {
         description: p.description,
         parents: p.parents.map(parent => parent._id.toString()),
         spouses: p.spouses.map(spouse => spouse._id.toString()),
+        formerSpouses: (p.formerSpouses || []).map(id => id.toString()),
         children: p.children.map(child => child._id.toString()),
         createdBy: p.createdBy ? p.createdBy.username : null,
         createdAt: p.createdAt,
@@ -81,7 +82,7 @@ router.post('/json', adminAuth, async (req, res) => {
     data.people.forEach((p, i) => {
       const key = keyOf(p, i);
       idMap.set(key, new mongoose.Types.ObjectId());
-      rel.set(key, { parents: new Set(), children: new Set(), spouses: new Set() });
+      rel.set(key, { parents: new Set(), children: new Set(), spouses: new Set(), former: new Set() });
     });
 
     // Make parent <-> child and spouse <-> spouse links two-way, ignoring unknown ids
@@ -97,9 +98,29 @@ router.post('/json', adminAuth, async (req, res) => {
         rel.get(key).children.add(o);
         rel.get(o).parents.add(key);
       });
-      known(p.spouses).forEach(o => {
-        rel.get(key).spouses.add(o);
-        rel.get(o).spouses.add(key);
+    });
+
+    // Partners: everybody's own list first, in the order of the file (the order of the
+    // relationships), then the other direction for links that were only written on one side
+    data.people.forEach((p, i) => {
+      const key = keyOf(p, i);
+      const known = (list) => (list || []).map(toId).filter(o => rel.has(o) && o !== key);
+      known(p.spouses).forEach(o => rel.get(key).spouses.add(o));
+    });
+    data.people.forEach((p, i) => {
+      const key = keyOf(p, i);
+      const known = (list) => (list || []).map(toId).filter(o => rel.has(o) && o !== key);
+      known(p.spouses).forEach(o => rel.get(o).spouses.add(key));
+    });
+    // Ended relationships count for both people, and only for people who are partners
+    data.people.forEach((p, i) => {
+      const key = keyOf(p, i);
+      const known = (list) => (list || []).map(toId).filter(o => rel.has(o) && o !== key);
+      known(p.formerSpouses).forEach(o => {
+        if (rel.get(key).spouses.has(o)) {
+          rel.get(key).former.add(o);
+          rel.get(o).former.add(key);
+        }
       });
     });
 
@@ -155,6 +176,7 @@ router.post('/json', adminAuth, async (req, res) => {
         description: p.description,
         parents: toNew(r.parents),
         spouses: toNew(r.spouses),
+        formerSpouses: toNew(r.former),
         children: toNew(r.children),
         createdBy: creatorByName.get(p.createdBy) || fallbackCreator
       };
