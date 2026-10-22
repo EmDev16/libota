@@ -1,0 +1,219 @@
+// The dashboard numbers, and the route that serves them.
+const { describe, it, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const request = require('supertest');
+const { computeStats } = require('../utils/stats');
+
+const person = (id, extra = {}) => ({
+  _id: id,
+  firstName: `P${id}`,
+  lastName: 'Test',
+  parents: [],
+  spouses: [],
+  ...extra
+});
+
+describe('computeStats', () => {
+  const today = '2026-10-22';
+
+  it('counts living, deceased and couples (each couple once)', () => {
+    const stats = computeStats(
+      [
+        person('a', { spouses: ['b'] }),
+        person('b', { spouses: ['a'] }),
+        person('c', { deathDate: '1990-01-01' })
+      ],
+      { today }
+    );
+    assert.equal(stats.total, 3);
+    assert.equal(stats.living, 2);
+    assert.equal(stats.deceased, 1);
+    assert.equal(stats.couples, 1);
+  });
+
+  it('puts partners in the same generation and finds the largest one', () => {
+    const stats = computeStats(
+      [
+        person('g1', { spouses: ['g1w'] }),
+        person('g1w', { spouses: ['g1'] }),
+        person('k1', { parents: ['g1', 'g1w'], spouses: ['k1w'] }),
+        person('k1w', { spouses: ['k1'] }),
+        person('k2', { parents: ['g1', 'g1w'] }),
+        person('k3', { parents: ['g1', 'g1w'] }),
+        person('gk', { parents: ['k1', 'k1w'] })
+      ],
+      { today }
+    );
+    assert.deepEqual(stats.generationSizes, [2, 4, 1]);
+    assert.equal(stats.generations, 3);
+    assert.deepEqual(stats.largestGeneration, { number: 2, size: 4 });
+  });
+
+  it('does not hang on a loop in the data', () => {
+    const stats = computeStats(
+      [person('a', { parents: ['b'] }), person('b', { parents: ['a'] })],
+      { today }
+    );
+    assert.equal(stats.total, 2);
+  });
+
+  it('averages the age at death, only for people with both dates', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1900-06-01', deathDate: '1980-06-01' }), // 80
+        person('b', { birthDate: '1910-06-01', deathDate: '1960-05-31' }), // 49
+        person('c', { deathDate: '1950-01-01' }) // no birth date: ignored
+      ],
+      { today }
+    );
+    assert.equal(stats.averageLifespan, 64.5);
+    assert.equal(stats.lifespanSample, 2);
+  });
+
+  it('finds the oldest and youngest living person', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1950-10-23' }),
+        person('b', { birthDate: '2020-01-01' }),
+        person('c', { birthDate: '1930-01-01', deathDate: '2000-01-01' })
+      ],
+      { today }
+    );
+    assert.equal(stats.oldestLiving.age, 75); // birthday is tomorrow
+    assert.equal(stats.youngestLiving.age, 6);
+  });
+
+  it('lists the most common names, only names that appear twice or more', () => {
+    const stats = computeStats(
+      [
+        person('a', { firstName: 'Marie', lastName: 'Kabila' }),
+        person('b', { firstName: 'marie', lastName: 'Kabila' }),
+        person('c', { firstName: 'Paul', lastName: 'Mbala' })
+      ],
+      { today }
+    );
+    assert.deepEqual(stats.topFirstNames, [{ name: 'Marie', count: 2 }]);
+    assert.deepEqual(stats.topLastNames, [{ name: 'Kabila', count: 2 }]);
+  });
+
+  it('counts births per decade with a running total, also for empty decades', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1951-01-01' }),
+        person('b', { birthDate: '1959-01-01' }),
+        person('c', { birthDate: '1982-01-01' })
+      ],
+      { today }
+    );
+    assert.deepEqual(stats.growth, [
+      { decade: 1950, born: 2, total: 2 },
+      { decade: 1960, born: 0, total: 2 },
+      { decade: 1970, born: 0, total: 2 },
+      { decade: 1980, born: 1, total: 3 }
+    ]);
+  });
+
+  describe('birthdays', () => {
+    const names = (stats) => stats.birthdays.map((b) => b.name);
+
+    it('lists living people in the next 30 days, soonest first, with the age they turn', () => {
+      const stats = computeStats(
+        [
+          person('a', { firstName: 'Today', birthDate: '2000-10-22' }),
+          person('b', { firstName: 'Soon', birthDate: '1990-11-05' }),
+          person('c', { firstName: 'Late', birthDate: '1990-12-31' }),
+          person('d', { firstName: 'Dead', birthDate: '1990-10-25', deathDate: '2020-01-01' })
+        ],
+        { today }
+      );
+      assert.deepEqual(names(stats), ['Today Test', 'Soon Test']);
+      assert.deepEqual(
+        stats.birthdays.map((b) => [b.daysAway, b.turns, b.day, b.month]),
+        [
+          [0, 26, 22, 10],
+          [14, 36, 5, 11]
+        ]
+      );
+    });
+
+    it('looks across the new year', () => {
+      const stats = computeStats([person('a', { birthDate: '1980-01-03' })], { today: '2026-12-28' });
+      assert.equal(stats.birthdays[0].daysAway, 6);
+      assert.equal(stats.birthdays[0].turns, 47);
+    });
+
+    it('moves 29 February to 28 February in other years', () => {
+      const stats = computeStats([person('a', { birthDate: '2000-02-29' })], { today: '2027-02-20' });
+      assert.equal(stats.birthdays[0].daysAway, 8);
+    });
+
+    it('leaves out people without a birth date', () => {
+      assert.deepEqual(computeStats([person('a')], { today }).birthdays, []);
+    });
+  });
+
+  it('finds births and deaths on this day in earlier years', () => {
+    const stats = computeStats(
+      [
+        person('a', { firstName: 'Born', birthDate: '1950-10-22' }),
+        person('b', { firstName: 'Died', birthDate: '1920-01-01', deathDate: '1999-10-22' }),
+        person('c', { firstName: 'Today', birthDate: '2026-10-22' })
+      ],
+      { today }
+    );
+    assert.deepEqual(
+      stats.onThisDay.map((e) => [e.kind, e.year]),
+      [
+        ['born', 1950],
+        ['died', 1999]
+      ]
+    );
+  });
+
+  it('copes with an empty family', () => {
+    const stats = computeStats([], { today });
+    assert.equal(stats.total, 0);
+    assert.equal(stats.averageLifespan, null);
+    assert.equal(stats.largestGeneration, null);
+    assert.deepEqual(stats.growth, []);
+  });
+});
+
+describe('GET /api/person/stats', () => {
+  const { startDb, stopDb, clearDb, createUser, createPerson, tokenFor } = require('./helpers');
+  const app = require('../app');
+  let member;
+  let token;
+
+  before(startDb);
+  after(stopDb);
+  beforeEach(async () => {
+    await clearDb();
+    member = await createUser('maria', 'member');
+    token = tokenFor(member);
+  });
+
+  it('needs a login', async () => {
+    assert.equal((await request(app).get('/api/person/stats')).status, 401);
+  });
+
+  it('gives a member the numbers (and is not mistaken for a person id)', async () => {
+    await createPerson(member, { firstName: 'Ruth', birthDate: '2000-10-25' });
+    const res = await request(app)
+      .get('/api/person/stats?today=2026-10-22')
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.total, 1);
+    assert.equal(res.body.birthdays[0].daysAway, 3);
+  });
+
+  it('ignores a made-up "today"', async () => {
+    const res = await request(app)
+      .get('/api/person/stats?today=nonsense')
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 200);
+    assert.match(res.body.today, /^\d{4}-\d{2}-\d{2}$/);
+  });
+});

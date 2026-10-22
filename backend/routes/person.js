@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const Person = require('../models/Person');
 const { auth, adminAuth } = require('../middleware/auth');
+const { computeStats } = require('../utils/stats');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
 
 const router = express.Router();
@@ -91,6 +92,20 @@ router.get('/', auth, async (req, res) => {
   } catch (error) {
     console.error('Get people failed:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Numbers for the dashboard. Must come before '/:id', or "stats" would be read as an id.
+// The browser sends its own date (?today=2026-10-22) so birthdays follow the family's time zone.
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const people = await Person.find().select(
+      'firstName lastName birthDate deathDate parents spouses createdAt'
+    );
+    res.json(computeStats(people, { today: req.query.today }));
+  } catch (error) {
+    console.error('Get stats failed:', error);
+    res.status(500).json({ error: 'Could not calculate the statistics' });
   }
 });
 
