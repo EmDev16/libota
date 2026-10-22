@@ -22,6 +22,11 @@ const userSchema = new mongoose.Schema({
     enum: ['fr', 'en', 'ln', 'nl'],
     default: 'en'
   },
+  // Set when the password changes; tokens made before this moment stop working
+  passwordChangedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

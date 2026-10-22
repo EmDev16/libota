@@ -1,111 +1,188 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { auth, adminAuth } = require('../middleware/auth');
+const {
+  loginLimiter,
+  recordLoginFailure,
+  clearLoginFailures
+} = require('../middleware/rateLimit');
+const { getJwtSecret } = require('../utils/config');
+const { passwordProblem } = require('../utils/password');
 
 const router = express.Router();
+
+const LANGUAGES = ['fr', 'en', 'ln', 'nl'];
+const ROLES = ['admin', 'member'];
+const isText = (value) => typeof value === 'string';
+
+// Compared against when the username does not exist, so the answer takes as long as a real one
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
+const signToken = (user) => jwt.sign({ userId: user._id }, getJwtSecret(), { expiresIn: '7d' });
+
+const publicUser = (user) => ({
+  id: user._id,
+  username: user.username,
+  role: user.role,
+  language: user.language
+});
+
+// The details stay in the server log; the browser only gets a general message
+const serverError = (res, error) => {
+  console.error(error);
+  res.status(500).json({ error: 'Something went wrong' });
+};
 
 // Register new user (admin only)
 router.post('/register', adminAuth, async (req, res) => {
   try {
     const { username, password, role, language } = req.body;
 
-    const existingUser = await User.findOne({ username });
+    // Only plain text is accepted: an object such as { "$gt": "" } must never reach the database query
+    if (!isText(username) || !username.trim()) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+    const problem = passwordProblem(password);
+    if (problem) {
+      return res.status(400).json({ error: problem });
+    }
+    if (role !== undefined && !ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const existingUser = await User.findOne({ username: username.trim() });
     if (existingUser) {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
     const user = new User({
-      username,
+      username: username.trim(),
       password,
       role: role || 'member',
-      language: language || 'en'
+      language: LANGUAGES.includes(language) ? language : 'en'
     });
 
     await user.save();
 
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your_jwt_secret_change_this_in_production',
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        language: user.language
-      }
-    });
+    res.status(201).json({ user: publicUser(user) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    serverError(res, error);
   }
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password, language } = req.body;
 
-    const user = await User.findOne({ username });
-    if (!user) {
+    if (!isText(username) || !isText(password)) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    const user = await User.findOne({ username });
+    const isMatch = user
+      ? await user.comparePassword(password)
+      : await bcrypt.compare(password, DUMMY_HASH).then(() => false);
+
+    if (!user || !isMatch) {
+      recordLoginFailure(req, username);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    clearLoginFailures(req, username);
 
     // Update language if provided
-    if (language && ['fr', 'en', 'ln', 'nl'].includes(language)) {
+    if (language && LANGUAGES.includes(language)) {
       user.language = language;
       await user.save();
     }
 
-    const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your_jwt_secret_change_this_in_production',
-      { expiresIn: '7d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        language: user.language
-      }
-    });
+    res.json({ token: signToken(user), user: publicUser(user) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    serverError(res, error);
   }
 });
 
 // Get current user
-router.get('/me', auth, async (req, res) => {
+router.get('/me', auth, (req, res) => {
+  res.json({
+    id: req.user._id,
+    username: req.user.username,
+    role: req.user.role,
+    language: req.user.language
+  });
+});
+
+// Change your own password. Every older login stops working; the answer holds a fresh token.
+router.put('/password', auth, async (req, res) => {
   try {
-    res.json({
-      id: req.user._id,
-      username: req.user.username,
-      role: req.user.role,
-      language: req.user.language
-    });
+    const { currentPassword, newPassword } = req.body;
+
+    if (!isText(currentPassword) || !isText(newPassword)) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user || !(await user.comparePassword(currentPassword))) {
+      // 400 and not 401: the browser logs you out on a 401, and you are still logged in here
+      return res.status(400).json({ error: 'Current password is not correct' });
+    }
+
+    const problem = passwordProblem(newPassword);
+    if (problem) {
+      return res.status(400).json({ error: problem });
+    }
+    if (newPassword === currentPassword) {
+      return res.status(400).json({ error: 'The new password must be different' });
+    }
+
+    user.password = newPassword;
+    user.passwordChangedAt = new Date();
+    await user.save();
+
+    res.json({ message: 'Password changed', token: signToken(user) });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    serverError(res, error);
   }
 });
 
 // Get all users (admin only)
 router.get('/users', adminAuth, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
+    const users = await User.find().select('-password -passwordChangedAt');
     res.json(users);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    serverError(res, error);
+  }
+});
+
+// Set a new password for someone else, e.g. when they forgot theirs (admin only).
+// They are logged out everywhere and must use the new password.
+router.put('/users/:id/password', adminAuth, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    const problem = passwordProblem(newPassword);
+    if (problem) {
+      return res.status(400).json({ error: problem });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.password = newPassword;
+    user.passwordChangedAt = new Date();
+    await user.save();
+
+    res.json({ message: 'Password reset' });
+  } catch (error) {
+    // An id that is not an ObjectId fails here as well
+    if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
+    serverError(res, error);
   }
 });
 
@@ -117,10 +194,16 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Deleting yourself is how a family ends up without any admin
+    if (String(user._id) === String(req.user._id)) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
+    serverError(res, error);
   }
 });
 
