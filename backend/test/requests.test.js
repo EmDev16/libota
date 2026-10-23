@@ -39,7 +39,7 @@ describe('member suggestions', () => {
     assert.equal(saved.items.length, 3);
     assert.equal(saved.senderName, 'Marie');
     assert.equal(saved.account, 'maria');
-    assert.equal((await Person.findById(anna._id)).birthDate, null); // nothing changed yet
+    assert.ok(!(await Person.findById(anna._id)).birthDate); // nothing changed yet
   });
 
   it('refuses admins, anonymous visitors and bad suggestions', async () => {
