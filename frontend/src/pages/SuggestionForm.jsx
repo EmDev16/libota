@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { personAPI, requestAPI } from '../api';
+import { personAPI, requestAPI, galleryAPI } from '../api';
 import SuggestionTabs from '../components/SuggestionTabs';
+import { readImageSize } from '../utils/gallery';
+import TagInput from '../components/TagInput';
+import PeopleTagger from '../components/PeopleTagger';
 
 const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description'];
 const MAX_ITEMS = 10;
@@ -15,6 +18,7 @@ const emptyItem = (type = 'correction') => ({
   current: null, // what the person has now, to send only what the member changed
   values: { firstName: '', lastName: '', birthDate: '', deathDate: '', gender: 'female', description: '' },
   relation: '',
+  gallery: { caption: '', year: '', album: '', tags: [], people: [] }, // for a photo of the gallery
   note: '',
   photo: null
 });
@@ -27,6 +31,7 @@ const SuggestionForm = () => {
   const [people, setPeople] = useState([]);
   const [items, setItems] = useState(() => [emptyItem()]);
   const [sender, setSender] = useState('');
+  const [options, setOptions] = useState({ albums: [], tags: [], names: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const fileInputs = useRef({});
@@ -35,7 +40,14 @@ const SuggestionForm = () => {
     personAPI.getAll().then((res) => setPeople(res.data)).catch(() => setError(t('error')));
   }, [t]);
 
+  // existing albums, tags and names, so a member picks them instead of typing a near-copy
+  useEffect(() => {
+    galleryAPI.options().then((res) => setOptions(res.data)).catch(() => {});
+  }, []);
+
   const update = (key, patch) => setItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+  const setGallery = (key, field, value) =>
+    setItems((list) => list.map((it) => (it.key === key ? { ...it, gallery: { ...it.gallery, [field]: value } } : it)));
   const setValue = (key, field, value) =>
     setItems((list) => list.map((it) => (it.key === key ? { ...it, values: { ...it.values, [field]: value } } : it)));
 
@@ -82,6 +94,25 @@ const SuggestionForm = () => {
           return;
         }
         payload.push({ type: 'correction', personId: it.personId, changes, note: it.note });
+      } else if (it.type === 'photo') {
+        if (!it.photo) {
+          setError(t('galleryChoose'));
+          return;
+        }
+        const size = await readImageSize(it.photo);
+        payload.push({
+          type: 'photo',
+          gallery: {
+            caption: it.gallery.caption,
+            year: it.gallery.year,
+            album: it.gallery.album,
+            tags: it.gallery.tags,
+            people: it.gallery.people,
+            width: size.width,
+            height: size.height
+          },
+          note: it.note
+        });
       } else {
         payload.push({ type: it.type, newPerson: it.values, relation: it.relation, note: it.note });
       }
@@ -160,6 +191,7 @@ const SuggestionForm = () => {
                 <option value="correction">{t('suggestTypeFix')}</option>
                 <option value="newPerson">{t('suggestTypeNew')}</option>
                 <option value="me">{t('suggestTypeMe')}</option>
+                <option value="photo">{t('suggestTypePhoto')}</option>
               </select>
             </div>
 
@@ -178,16 +210,55 @@ const SuggestionForm = () => {
               </div>
             )}
 
-            {(it.type !== 'correction' || it.personId) && personFields(it)}
+            {it.type !== 'photo' && (it.type !== 'correction' || it.personId) && personFields(it)}
 
-            {it.type !== 'correction' && (
+            {it.type === 'photo' && (
+              <>
+                <div className="form-group">
+                  <label>{t('photo')} *</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => update(it.key, { photo: e.target.files[0] || null })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryCaption')}</label>
+                  <input type="text" value={it.gallery.caption} maxLength={300} onChange={(e) => setGallery(it.key, 'caption', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryYear')}</label>
+                  <input type="number" min="1800" value={it.gallery.year} onChange={(e) => setGallery(it.key, 'year', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryAlbum')}</label>
+                  <TagInput single hashtag={false} value={it.gallery.album} options={options.albums} onChange={(v) => setGallery(it.key, 'album', v)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryTags')}</label>
+                  <TagInput value={it.gallery.tags} options={options.tags} onChange={(v) => setGallery(it.key, 'tags', v)} />
+                  <small>{t('galleryTagsHint')}</small>
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryPeople')}</label>
+                  <PeopleTagger
+                    value={it.gallery.people}
+                    onChange={(v) => setGallery(it.key, 'people', v)}
+                    family={people}
+                    outsiders={options.names}
+                  />
+                </div>
+              </>
+            )}
+
+            {(it.type === 'newPerson' || it.type === 'me') && (
               <div className="form-group">
                 <label>{t('suggestRelation')}</label>
                 <input type="text" value={it.relation} maxLength={200} onChange={(e) => update(it.key, { relation: e.target.value })} />
               </div>
             )}
 
-            {(it.type !== 'correction' || it.personId) && (
+            {it.type !== 'photo' && (it.type !== 'correction' || it.personId) && (
               <div className="form-group">
                 <label>{t('photo')}</label>
                 <input

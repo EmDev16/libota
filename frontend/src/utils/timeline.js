@@ -15,10 +15,11 @@ export const yearsBetween = (from, to) => {
   return before ? years - 1 : years;
 };
 
-// kind: 'all' | 'born' | 'died'. Oldest first, same day: by name.
-export const buildTimeline = (people, kind = 'all') => {
+// kind: 'all' | 'born' | 'died' | 'photo'. Oldest first, same day: by name.
+// photos: gallery photos that carry the hidden tag "timeline"; they need a date or a year.
+export const buildTimeline = (people, kind = 'all', photos = []) => {
   const events = [];
-  for (const p of people || []) {
+  for (const p of kind === 'photo' ? [] : people || []) {
     const name = `${p.firstName} ${p.lastName}`.trim();
     const birth = toDate(p.birthDate);
     const death = toDate(p.deathDate);
@@ -35,6 +36,21 @@ export const buildTimeline = (people, kind = 'all') => {
         date: death,
         year: death.getUTCFullYear(),
         age: birth && death >= birth ? yearsBetween(birth, death) : null
+      });
+    }
+  }
+  if (kind === 'all' || kind === 'photo') {
+    for (const photo of photos || []) {
+      const date = toDate(photo.date) || (photo.year ? new Date(Date.UTC(photo.year, 0, 1)) : null);
+      if (!date) continue;
+      events.push({
+        key: `photo-${photo.id}`,
+        photoId: photo.id,
+        name: photo.caption || 'Photo',
+        kind: 'photo',
+        date,
+        year: date.getUTCFullYear(),
+        image: photo.image
       });
     }
   }

@@ -27,6 +27,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Which hidden gallery tags this account may see. Photos without hidden tags are open to everybody.
+  // galleryAll lets the account see every photo (admins always do).
+  galleryAll: {
+    type: Boolean,
+    default: false
+  },
+  galleryTags: {
+    type: [String],
+    default: []
+  },
   // Set when the password changes; tokens made before this moment stop working
   passwordChangedAt: {
     type: Date,

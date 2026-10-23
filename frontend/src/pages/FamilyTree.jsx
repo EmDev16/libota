@@ -398,16 +398,22 @@ const FamilyTree = () => {
                   <p><strong>{t('description')}:</strong> {selectedPerson.description}</p>
                 )}
               </div>
-              {isAdmin && (
-                <div className="modal-actions">
+              <div className="modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => navigate(`/gallery?person=${selectedPerson._id}`)}
+                >
+                  {t('galleryPhotosLink')}
+                </button>
+                {isAdmin && (
                   <button
                     className="btn-primary"
                     onClick={() => navigate(`/people/${selectedPerson._id}/edit`)}
                   >
                     {t('edit')}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -13,6 +13,8 @@ import Account from './pages/Account';
 import Timeline from './pages/Timeline';
 import ActivityLog from './pages/ActivityLog';
 import SuggestionForm from './pages/SuggestionForm';
+import Gallery from './pages/Gallery';
+import GalleryUpload from './pages/GalleryUpload';
 import MyRequests from './pages/MyRequests';
 import Requests from './pages/Requests';
 import Navbar from './components/Navbar';
@@ -152,6 +154,22 @@ const AppContent = () => {
               element={
                 <ProtectedRoute adminOnly>
                   <Requests />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gallery"
+              element={
+                <ProtectedRoute>
+                  <Gallery />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gallery/new"
+              element={
+                <ProtectedRoute adminOnly>
+                  <GalleryUpload />
                 </ProtectedRoute>
               }
             />

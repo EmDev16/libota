@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { authAPI, exportAPI, requestAPI } from '../api';
+import { authAPI, exportAPI, requestAPI, galleryAPI } from '../api';
+import GalleryAccess from '../components/GalleryAccess';
 import { LANGUAGES } from '../i18n';
 
 // Accepts a plain array of people, or an object like { people: [...] }
@@ -26,8 +27,12 @@ const AdminPanel = () => {
     password: '',
     role: 'member',
     language: 'en',
-    showStats: false
+    showStats: false,
+    galleryAll: false,
+    galleryTags: []
   });
+  const [hiddenTagOptions, setHiddenTagOptions] = useState([]);
+  const [galleryEdit, setGalleryEdit] = useState(null); // { id, galleryAll, galleryTags }
 
   // Import state
   const fileInputRef = useRef(null);
@@ -38,6 +43,8 @@ const AdminPanel = () => {
   useEffect(() => {
     loadUsers();
     requestAPI.count().then((res) => setPendingRequests(res.data.pending)).catch(() => {});
+    // the hidden tags that exist, so they are picked and not typed again
+    galleryAPI.options().then((res) => setHiddenTagOptions(res.data.hiddenTags || [])).catch(() => {});
   }, []);
 
   const loadUsers = async () => {
@@ -59,10 +66,11 @@ const AdminPanel = () => {
         newUser.password,
         newUser.role,
         newUser.language,
-        newUser.showStats
+        newUser.showStats,
+        { galleryAll: newUser.galleryAll, galleryTags: newUser.galleryTags }
       );
       setShowAddUser(false);
-      setNewUser({ username: '', password: '', role: 'member', language: 'en', showStats: false });
+      setNewUser({ username: '', password: '', role: 'member', language: 'en', showStats: false, galleryAll: false, galleryTags: [] });
       loadUsers();
     } catch (error) {
       console.error('Error adding user:', error);
@@ -90,6 +98,17 @@ const AdminPanel = () => {
     } catch (error) {
       console.error('Error changing statistics access:', error);
       alert(t('error'));
+    }
+  };
+
+  const saveGalleryAccess = async () => {
+    try {
+      await authAPI.setUserGallery(galleryEdit.id, galleryEdit.galleryAll, galleryEdit.galleryTags);
+      setGalleryEdit(null);
+      loadUsers();
+    } catch (error) {
+      console.error('Error changing gallery access:', error);
+      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
@@ -276,6 +295,14 @@ const AdminPanel = () => {
                 </label>
               </div>
             )}
+            {newUser.role === 'member' && (
+              <GalleryAccess
+                galleryAll={newUser.galleryAll}
+                galleryTags={newUser.galleryTags}
+                options={hiddenTagOptions}
+                onChange={(v) => setNewUser({ ...newUser, ...v })}
+              />
+            )}
             <button type="submit" className="btn-primary">
               {t('save')}
             </button>
@@ -291,7 +318,8 @@ const AdminPanel = () => {
 
         <div className="users-list">
           {users.map(user => (
-            <div key={user._id} className="user-item">
+            <React.Fragment key={user._id}>
+            <div className="user-item">
               <div className="user-info">
                 <strong>{user.username}</strong>
                 <span className={`role-badge ${user.role}`}>{user.role}</span>
@@ -307,6 +335,21 @@ const AdminPanel = () => {
                   </label>
                 )}
               </div>
+              {user.role === 'member' && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setGalleryEdit(
+                      galleryEdit?.id === user._id
+                        ? null
+                        : { id: user._id, galleryAll: !!user.galleryAll, galleryTags: user.galleryTags || [] }
+                    )
+                  }
+                  className="btn-secondary"
+                >
+                  {t('galleryAccess')}
+                </button>
+              )}
               <button
                 onClick={() => handleResetPassword(user)}
                 className="btn-secondary"
@@ -320,6 +363,19 @@ const AdminPanel = () => {
                 {t('delete')}
               </button>
             </div>
+            {galleryEdit?.id === user._id && (
+              <div className="user-gallery-editor">
+                <GalleryAccess
+                  galleryAll={galleryEdit.galleryAll}
+                  galleryTags={galleryEdit.galleryTags}
+                  options={hiddenTagOptions}
+                  onChange={(v) => setGalleryEdit({ ...galleryEdit, ...v })}
+                />
+                <button type="button" className="btn-primary" onClick={saveGalleryAccess}>{t('save')}</button>
+                <button type="button" className="btn-secondary" onClick={() => setGalleryEdit(null)}>{t('cancel')}</button>
+              </div>
+            )}
+            </React.Fragment>
           ))}
         </div>
       </div>

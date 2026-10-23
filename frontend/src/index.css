@@ -1739,3 +1739,89 @@ small { color: var(--muted); }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---------- Gallery ---------- */
+.gallery-page { max-width: 1200px; margin: 0 auto; }
+.gallery-tags { margin-bottom: 0.75rem; }
+.gallery-count { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0.75rem; }
+.gallery-clear { margin-left: 0.75rem; background: none; border: none; padding: 0; color: var(--copper-dark); font: inherit; text-decoration: underline; cursor: pointer; }
+.gallery-columns { display: flex; gap: 0.6rem; align-items: flex-start; }
+.gallery-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.gallery-item { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); overflow: hidden; cursor: pointer; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.07); }
+.gallery-item:hover { border-color: var(--copper); }
+.gallery-item img { display: block; width: 100%; height: auto; }
+
+.lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(42, 35, 25, 0.88); overflow-y: auto; }
+.lightbox-card { position: relative; width: min(1000px, 100%); max-height: 100%; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius); border: 1px solid var(--line); overflow-x: hidden; overflow-y: auto; }
+.lightbox-close { position: absolute; top: 0.4rem; right: 0.5rem; z-index: 2; width: 36px; height: 36px; border: none; border-radius: var(--radius); background: rgba(255, 255, 255, 0.9); color: var(--ink); font-size: 1.6rem; line-height: 1; cursor: pointer; }
+.lightbox-stage { display: flex; align-items: center; justify-content: center; background: #1b1610; flex: 0 0 auto; }
+.lightbox-photo { position: relative; flex: 0 1 auto; min-width: 0; line-height: 0; }
+.lightbox-image { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; }
+.lightbox-card.editing .lightbox-image { max-height: 32vh; }
+.lightbox-image.placing { cursor: crosshair; outline: 2px solid var(--copper); outline-offset: -2px; }
+.lightbox-nav { flex: 0 0 auto; width: 44px; align-self: stretch; border: none; background: transparent; color: #fff; font-size: 2rem; cursor: pointer; }
+.lightbox-nav:disabled { opacity: 0.25; cursor: default; }
+.lightbox-info { padding: 0.9rem 1.1rem 1.1rem; flex: 0 0 auto; }
+.lightbox-caption { font-weight: 600; margin: 0 0 0.25rem; overflow-wrap: anywhere; }
+.lightbox-meta { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.6rem; }
+.gallery-fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.upload-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+.upload-item { display: flex; gap: 0.75rem; align-items: center; padding: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); flex-wrap: wrap; }
+.upload-preview { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius); border: 2px solid var(--copper); flex: 0 0 auto; }
+.upload-fields { flex: 1 1 200px; min-width: 0; display: grid; gap: 0.4rem; }
+.upload-fields input { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); font: inherit; background: var(--card); }
+.upload-item .btn-secondary { width: auto; padding: 0.4rem 0.9rem; }
+
+@media (max-width: 600px) {
+  .gallery-columns, .gallery-col { gap: 0.4rem; }
+  .lightbox { padding: 0; }
+  .lightbox-card { width: 100%; min-height: 100%; border-radius: 0; }
+  .lightbox-nav { width: 34px; }
+  .gallery-fields-row { grid-template-columns: 1fr; }
+}
+
+/* ---------- Gallery: tags, people on photos, access ---------- */
+.tag-input { display: grid; gap: 0.4rem; }
+.tag-input > input { width: 100%; }
+.tag-chip { display: inline-flex; align-items: center; gap: 0.35rem; cursor: default; }
+.tag-chip-x { border: none; background: transparent; color: inherit; font: inherit; font-size: 1.1rem; line-height: 1; padding: 0 0.1rem; cursor: pointer; }
+.tag-suggest { display: grid; gap: 0.35rem; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); }
+.tag-suggest-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+.tag-suggest-label { color: var(--muted); font-size: 0.85rem; margin-right: 0.2rem; }
+.chip-near { border-color: var(--copper); color: var(--copper-dark); }
+.tag-new { color: var(--copper-dark); }
+.chip-person { background: var(--copper-tint); border-color: var(--copper-line); color: var(--copper-dark); }
+
+.lightbox-people { margin: 0 0 0.6rem; display: grid; gap: 0.3rem; }
+.lightbox-label { color: var(--muted); font-size: 0.85rem; }
+.lightbox-hidden { margin-top: 0.4rem; }
+
+/* name labels on the picture, like on Instagram */
+.photo-tag { position: absolute; transform: translate(-50%, 10px); max-width: 60%; padding: 0.25rem 0.55rem; border: none; border-radius: var(--radius); background: rgba(27, 22, 16, 0.88); color: #fff; font: inherit; font-size: 0.8rem; line-height: 1.2; width: max-content; white-space: normal; text-align: center; cursor: pointer; z-index: 1; }
+.photo-tag::before { content: ''; position: absolute; left: 50%; top: -6px; transform: translateX(-50%); border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid rgba(27, 22, 16, 0.88); }
+.photo-tags-toggle { position: absolute; left: 0.5rem; bottom: 0.5rem; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: rgba(27, 22, 16, 0.8); color: #fff; cursor: pointer; line-height: 1; }
+.photo-tags-toggle.on { background: var(--copper); }
+
+.people-tagger { display: grid; gap: 0.5rem; }
+.people-tag-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.people-tag-list li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); }
+.people-tag-list li.placing { border-color: var(--copper); background: var(--copper-tint); }
+.people-tag-name { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.people-tag-name em { color: var(--muted); font-style: normal; font-size: 0.85rem; }
+.people-tag-btn { width: auto; padding: 0.3rem 0.7rem; }
+.people-place-hint { margin: 0; color: var(--copper-dark); font-size: 0.9rem; }
+.people-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: center; }
+.people-add select, .people-add input { width: 100%; min-width: 0; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); font: inherit; background: var(--card); }
+.people-add .btn-secondary { width: auto; padding: 0.45rem 0.9rem; }
+
+.gallery-access { display: grid; gap: 0.5rem; }
+.user-gallery-editor { margin: -0.25rem 0 0.75rem; padding: 0.9rem; border: 1px solid var(--line); border-top: 2px solid var(--copper); border-radius: var(--radius); background: var(--soft); display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
+.user-gallery-editor .gallery-access { width: 100%; }
+.user-gallery-editor .btn-primary, .user-gallery-editor .btn-secondary { width: auto; }
+
+@media (max-width: 600px) {
+  .people-add { grid-template-columns: 1fr; }
+}
+
+.timeline-photo { background: var(--soft); border: 1px solid var(--line); color: var(--ink); }

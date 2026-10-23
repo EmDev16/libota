@@ -15,7 +15,8 @@ const FIELD_LABELS = {
 // One suggestion, read-only: what was asked, with a photo if there is one. Admin buttons go in `children`.
 const SuggestionItem = ({ item }) => {
   const { t } = useTranslation();
-  const data = item.type === 'correction' ? item.changes || {} : item.newPerson || {};
+  const data = item.type === 'correction' ? item.changes || {} : item.type === 'photo' ? {} : item.newPerson || {};
+  const g = item.type === 'photo' ? item.gallery || {} : null;
   const show = (field, value) => {
     if (field.endsWith('Date')) return formatDate(value);
     if (field === 'gender') return t(value, value);
@@ -28,7 +29,9 @@ const SuggestionItem = ({ item }) => {
   const title =
     item.type === 'correction'
       ? t('suggestFor', { name: item.personName, defaultValue: 'Change for {{name}}' })
-      : item.type === 'me'
+      : item.type === 'photo'
+        ? t('suggestTypePhoto')
+        : item.type === 'me'
         ? t('suggestTypeMe')
         : t('suggestTypeNew');
 
@@ -52,6 +55,36 @@ const SuggestionItem = ({ item }) => {
               </dd>
             </React.Fragment>
           ))}
+        {g && g.caption && (
+          <>
+            <dt>{t('galleryCaption')}</dt>
+            <dd>{g.caption}</dd>
+          </>
+        )}
+        {g && (g.takenDate || g.takenYear) && (
+          <>
+            <dt>{t('galleryYear')}</dt>
+            <dd>{g.takenDate ? formatDate(g.takenDate) : g.takenYear}</dd>
+          </>
+        )}
+        {g && g.album && (
+          <>
+            <dt>{t('galleryAlbum')}</dt>
+            <dd>{g.album}</dd>
+          </>
+        )}
+        {g && g.tags && g.tags.length > 0 && (
+          <>
+            <dt>{t('galleryTags')}</dt>
+            <dd>{g.tags.map((x) => `#${x}`).join(' ')}</dd>
+          </>
+        )}
+        {g && g.people && g.people.length > 0 && (
+          <>
+            <dt>{t('galleryPeople')}</dt>
+            <dd>{g.people.map((x) => x.name).join(', ')}</dd>
+          </>
+        )}
         {item.relation && (
           <>
             <dt>{t('suggestRelation')}</dt>
