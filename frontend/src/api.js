@@ -37,14 +37,20 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (username, password, language) =>
     api.post('/auth/login', { username, password, language }),
-  register: (username, password, role, language, showStats = false) =>
-    api.post('/auth/register', { username, password, role, language, showStats }),
+  register: (username, password, role, language, showStats = false, gallery = {}) =>
+    api.post('/auth/register', {
+      username, password, role, language, showStats,
+      galleryAll: gallery.galleryAll === true,
+      galleryTags: gallery.galleryTags || []
+    }),
   getMe: () => api.get('/auth/me'),
   changePassword: (currentPassword, newPassword) =>
     api.put('/auth/password', { currentPassword, newPassword }),
   resetUserPassword: (id, newPassword) =>
     api.put(`/auth/users/${id}/password`, { newPassword }),
   getUsers: () => api.get('/auth/users'),
+  setUserGallery: (id, galleryAll, galleryTags) =>
+    api.put(`/auth/users/${id}/gallery`, { galleryAll, galleryTags }),
   setUserStats: (id, showStats) => api.put(`/auth/users/${id}/stats`, { showStats }),
   deleteUser: (id) => api.delete(`/auth/users/${id}`)
 };
@@ -91,7 +97,8 @@ export const requestAPI = {
 };
 
 export const galleryAPI = {
-  list: () => api.get('/gallery'),
+  list: (params) => api.get('/gallery', { params }),
+  options: () => api.get('/gallery/options'),
   add: (formData) => api.post('/gallery', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),

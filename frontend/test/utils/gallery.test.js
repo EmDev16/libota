@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { thumbUrl, aspectOf, layoutColumns, columnCount, parseTags } from '../../src/utils/gallery';
+import { thumbUrl, aspectOf, layoutColumns, columnCount, parseTags, normTag, levenshtein, suggestOptions } from '../../src/utils/gallery';
 
 const photo = (id, width, height) => ({ id, width, height });
 
@@ -62,5 +62,29 @@ describe('parseTags', () => {
   it('cleans, lowercases and removes doubles', () => {
     expect(parseTags('Wedding, #family  gathering ,wedding,,')).toEqual(['wedding', 'family gathering']);
     expect(parseTags('')).toEqual([]);
+  });
+});
+
+describe('tag helpers', () => {
+  it('cleans a tag like the server does', () => {
+    expect(normTag(' #Family  Gathering ')).toBe('family gathering');
+  });
+
+  it('counts letter changes', () => {
+    expect(levenshtein('wedding', 'weding')).toBe(1);
+    expect(levenshtein('abc', 'abc')).toBe(0);
+    expect(levenshtein('', 'ab')).toBe(2);
+  });
+
+  it('offers existing values, also when a letter is missed', () => {
+    const options = ['wedding', 'christmas 2019', 'holiday', 'Wedding Party'];
+    expect(suggestOptions('weding', options).near).toEqual(['wedding']);
+    expect(suggestOptions('wedd', options).matches).toEqual(['wedding', 'Wedding Party']);
+    expect(suggestOptions('Wedding', options).exact).toBe('wedding');
+    expect(suggestOptions('', options).matches).toHaveLength(4);
+  });
+
+  it('leaves out what is already chosen', () => {
+    expect(suggestOptions('', ['a', 'b'], ['A']).matches).toEqual(['b']);
   });
 });

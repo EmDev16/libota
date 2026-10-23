@@ -22,6 +22,19 @@ describe('timeline', () => {
     expect(buildTimeline(people, 'died')[0].age).toBe(69); // one day before the 70th birthday
   });
 
+  it('adds photos with a date or a year, and skips photos without', () => {
+    const photos = [
+      { id: 'p1', caption: 'Wedding', date: '1975-05-05', image: '/a.jpg' },
+      { id: 'p2', year: 1990, image: '/b.jpg' },
+      { id: 'p3', image: '/c.jpg' }
+    ];
+    const all = buildTimeline(people, 'all', photos);
+    expect(all.map((e) => e.key)).toEqual(['a-born', 'photo-p1', 'b-born', 'photo-p2', 'a-died']);
+    expect(all.filter((e) => e.kind === 'photo').map((e) => e.name)).toEqual(['Wedding', 'Photo']);
+    expect(buildTimeline(people, 'photo', photos)).toHaveLength(2);
+    expect(buildTimeline(people, 'born', photos)).toHaveLength(2);
+  });
+
   it('groups by year, newest or oldest first', () => {
     const events = buildTimeline(people);
     expect(groupByYear(events, 'oldest').map((g) => g.year)).toEqual([1950, 1980, 2020]);

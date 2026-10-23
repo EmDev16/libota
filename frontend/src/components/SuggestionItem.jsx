@@ -79,6 +79,12 @@ const SuggestionItem = ({ item }) => {
             <dd>{g.tags.map((x) => `#${x}`).join(' ')}</dd>
           </>
         )}
+        {g && g.people && g.people.length > 0 && (
+          <>
+            <dt>{t('galleryPeople')}</dt>
+            <dd>{g.people.map((x) => x.name).join(', ')}</dd>
+          </>
+        )}
         {item.relation && (
           <>
             <dt>{t('suggestRelation')}</dt>
