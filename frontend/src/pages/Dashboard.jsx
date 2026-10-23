@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { personAPI } from '../api';
 import { formatDayMonth, localToday } from '../utils/dates';
+import AdminOverview, { GalleryCard } from '../components/AdminOverview';
 
 const Tile = ({ value, label }) => (
   <div className="stat-tile">
@@ -245,16 +246,7 @@ const Dashboard = () => {
             </section>
           )}
 
-          {stats.recentlyAdded.length > 0 && (
-            <section className="insight-card">
-              <h2>{t('recentlyAdded', 'Recently added')}</h2>
-              <ul className="plain-list">
-                {stats.recentlyAdded.map((p) => (
-                  <li key={p.id}>{p.name}</li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {isAdmin && <GalleryCard />}
         </div>
       </>
     );
@@ -307,6 +299,8 @@ const Dashboard = () => {
       </div>
 
       {canSeeStats && renderStats()}
+
+      {isAdmin && <AdminOverview />}
 
     </div>
   );

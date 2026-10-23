@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { auditAPI } from '../api';
 
-const ACTIONS = {
+export const ACTIONS = {
   'person.create': 'logPersonAdded',
   'person.update': 'logPersonEdited',
   'person.delete': 'logPersonDeleted',

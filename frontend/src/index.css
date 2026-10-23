@@ -1825,3 +1825,12 @@ small { color: var(--muted); }
 }
 
 .timeline-photo { background: var(--soft); border: 1px solid var(--line); color: var(--ink); }
+
+.todo-link { color: var(--copper-dark); text-decoration: underline; }
+.todo-item h3 { margin-top: 0.75rem; }
+.recent-activity li { border-bottom: 1px solid var(--line); padding: 0.4rem 0; overflow-wrap: anywhere; }
+.recent-activity li:last-child { border-bottom: none; }
+.admin-overview { margin-top: 1.5rem; }
+
+.admin-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+@media (max-width: 800px) { .admin-bottom { grid-template-columns: 1fr; } }
