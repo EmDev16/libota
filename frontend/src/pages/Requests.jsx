@@ -103,7 +103,7 @@ const Requests = () => {
                   </div>
                 ) : (
                   <div className="request-status">
-                    <span className={`log-status log-status-${item.status === 'rejected' ? 'fail' : 'success'}`}>
+                    <span className={`log-status log-status-${item.status === 'rejected' ? 'fail' : item.status === 'pending' ? 'pending' : 'success'}`}>
                       {t(STATUS[item.status])}
                     </span>
                     <span>{item.handledBy}</span>

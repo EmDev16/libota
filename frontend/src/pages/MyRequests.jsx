@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { requestAPI } from '../api';
 import SuggestionItem from '../components/SuggestionItem';
+import SuggestionTabs from '../components/SuggestionTabs';
 
 const pad = (n) => String(n).padStart(2, '0');
 const formatWhen = (value) => {
@@ -26,11 +27,9 @@ const MyRequests = () => {
 
   return (
     <div className="activity-log">
+      <SuggestionTabs current="mine" />
       <h1>{t('myRequestsTitle')}</h1>
       {location.state?.sent && <div className="import-success">{t('suggestSent')}</div>}
-      <p>
-        <Link to="/suggest" className="btn-primary log-link">{t('suggestTitle')}</Link>
-      </p>
 
       {requests.length === 0 && <div className="no-data">{t('myRequestsNone')}</div>}
 
@@ -45,7 +44,7 @@ const MyRequests = () => {
               <div key={item._id}>
                 <SuggestionItem item={item} />
                 <div className="request-status">
-                  <span className={`log-status log-status-${item.status === 'rejected' ? 'fail' : 'success'}`}>
+                  <span className={`log-status log-status-${item.status === 'rejected' ? 'fail' : item.status === 'pending' ? 'pending' : 'success'}`}>
                     {t(STATUS[item.status])}
                   </span>
                   {item.status === 'rejected' && item.rejectReason && (

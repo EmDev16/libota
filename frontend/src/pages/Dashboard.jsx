@@ -283,6 +283,12 @@ const Dashboard = () => {
           <h2>{t('relationshipFinder')}</h2>
           <p>{t('findRelationship')}</p>
         </div>
+        {!isAdmin && (
+          <div className="dashboard-card" onClick={() => navigate('/suggest')}>
+            <h2>{t('suggestTitle')}</h2>
+            <p>{t('dashSuggestText')}</p>
+          </div>
+        )}
         {isAdmin && (
           <div className="dashboard-card admin-card" onClick={() => navigate('/admin')}>
             <h2>{t('adminPanel')}</h2>

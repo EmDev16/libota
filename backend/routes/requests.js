@@ -177,6 +177,33 @@ router.get('/', adminAuth, async (req, res) => {
   try {
     const filter = req.query.status === 'pending' ? { 'items.status': 'pending' } : {};
     const requests = await SuggestionRequest.find(filter).sort({ createdAt: -1 }).limit(100).lean();
+
+    // For a waiting correction, show what the person has now, so the admin can compare
+    const ids = [];
+    for (const r of requests) {
+      for (const item of r.items) {
+        if (item.type === 'correction' && item.status === 'pending' && item.personId) ids.push(item.personId);
+      }
+    }
+    const people = ids.length
+      ? await Person.find({ _id: { $in: ids } }).select(`${FIELDS.join(' ')} photo`).lean()
+      : [];
+    const byId = new Map(people.map((p) => [String(p._id), p]));
+    for (const r of requests) {
+      for (const item of r.items) {
+        const p = item.type === 'correction' && item.status === 'pending' ? byId.get(String(item.personId)) : null;
+        if (!p) continue;
+        item.current = {
+          firstName: p.firstName,
+          lastName: p.lastName,
+          birthDate: p.birthDate ? new Date(p.birthDate).toISOString().slice(0, 10) : '',
+          deathDate: p.deathDate ? new Date(p.deathDate).toISOString().slice(0, 10) : '',
+          gender: p.gender,
+          description: p.description || '',
+          photo: p.photo || null
+        };
+      }
+    }
     res.json(requests);
   } catch (error) {
     console.error('Reading suggestions failed:', error);
@@ -218,6 +245,11 @@ router.post('/:id/items/:itemId/approve', adminAuth, async (req, res) => {
       if (!person) return res.status(409).json({ error: 'This person no longer exists' });
       const before = await personSnapshot(person);
       const c = item.changes || {};
+      // remember what was there before, for the record
+      item.previous = {};
+      for (const f of FIELDS) if (c[f]) item.previous[f] = before[f] == null ? '' : before[f];
+      if (item.photo) item.previous.photo = before.photo || null;
+      item.markModified('previous');
       if (c.firstName) person.firstName = c.firstName;
       if (c.lastName) person.lastName = c.lastName;
       if (c.birthDate) person.birthDate = toDate(c.birthDate);

@@ -15,6 +15,7 @@ const itemSchema = new mongoose.Schema({
   personId: { type: mongoose.Schema.Types.ObjectId, default: null },
   personName: { type: String, default: '' },
   changes: { type: mongoose.Schema.Types.Mixed, default: null }, // { firstName, lastName, birthDate, deathDate, gender, description }
+  previous: { type: mongoose.Schema.Types.Mixed, default: null }, // the old values of what an approved correction changed
 
   // newPerson / me
   newPerson: { type: mongoose.Schema.Types.Mixed, default: null }, // { firstName, lastName, birthDate, deathDate, gender, description }

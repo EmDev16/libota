@@ -2,6 +2,9 @@
 // Lingala: the new strings were drafted without a native speaker and still need a review.
 // Words kept from French (Génération, Statistiques, Tableau de bord ...) are common in Congolese Lingala.
 export default {
+  dashSuggestText: 'Bakisa bato to makambo ezali te',
+  suggestPhotoCurrent: 'Foto ya sikoyo',
+  suggestPhotoNew: 'Foto ya sika',
   navSuggest: 'Kopesa',
   suggestTitle: 'Pesa likanisi',
   suggestType: 'Lolenge',

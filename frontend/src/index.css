@@ -1708,3 +1708,16 @@ small { color: var(--muted); }
 .request-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0 0.4rem; }
 .request-actions button { width: auto; padding: 0.45rem 1rem; }
 .request-status { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin: 0.5rem 0 0.4rem; font-size: 0.85rem; color: var(--muted); }
+.log-status-pending { background: var(--card); color: var(--navy); border: 1px solid var(--navy); }
+.suggestion-tabs { margin-bottom: 1rem; }
+.suggestion-tabs .chip { text-decoration: none; }
+.suggestion-item { background: var(--card); box-shadow: 0 1px 5px rgba(0, 0, 0, 0.07); }
+.request-photos { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.request-photos figure { margin: 0; }
+.request-photos figcaption { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+.request-photo { border: 2px solid var(--copper); border-radius: var(--radius); box-shadow: 0 0 6px rgba(184, 115, 51, 0.15); }
+.request-old { color: var(--muted); text-decoration: line-through; }
+.request-arrow { color: var(--muted); }
+.request-new { font-weight: 600; color: var(--ink); }
+.pending-pill { display: inline-block; padding: 0.2rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+.pending-pill-active { background: var(--copper-tint); border-color: var(--copper-line); color: var(--copper-dark); }

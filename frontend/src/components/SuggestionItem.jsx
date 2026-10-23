@@ -22,6 +22,9 @@ const SuggestionItem = ({ item }) => {
     return value;
   };
 
+  // what the person has now (waiting) or had before (answered), to compare with
+  const old = item.current || item.previous || null;
+
   const title =
     item.type === 'correction'
       ? t('suggestFor', { name: item.personName, defaultValue: 'Change for {{name}}' })
@@ -38,7 +41,15 @@ const SuggestionItem = ({ item }) => {
           .map((f) => (
             <React.Fragment key={f}>
               <dt>{t(FIELD_LABELS[f])}</dt>
-              <dd>{show(f, data[f])}</dd>
+              <dd>
+                {item.type === 'correction' && old && (
+                  <>
+                    <span className="request-old">{show(f, old[f]) || '—'}</span>
+                    <span className="request-arrow"> → </span>
+                  </>
+                )}
+                <span className="request-new">{show(f, data[f])}</span>
+              </dd>
             </React.Fragment>
           ))}
         {item.relation && (
@@ -54,7 +65,20 @@ const SuggestionItem = ({ item }) => {
           </>
         )}
       </dl>
-      {item.photo && <img className="request-photo" src={photoUrl(item.photo)} alt="" />}
+      {item.photo && (
+        <div className="request-photos">
+          {old && old.photo && (
+            <figure>
+              <img className="request-photo" src={photoUrl(old.photo)} alt="" />
+              <figcaption>{t('suggestPhotoCurrent')}</figcaption>
+            </figure>
+          )}
+          <figure>
+            <img className="request-photo" src={photoUrl(item.photo)} alt="" />
+            {old && old.photo && <figcaption>{t('suggestPhotoNew')}</figcaption>}
+          </figure>
+        </div>
+      )}
     </div>
   );
 };

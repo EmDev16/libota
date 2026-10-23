@@ -58,6 +58,19 @@ describe('member suggestions', () => {
     assert.equal((await as(adminToken, request(app).get('/api/requests/mine'))).status, 403);
   });
 
+  it('shows the admin what a waiting correction would replace', async () => {
+    const anna = await createPerson(admin, { birthDate: new Date('1949-01-01') });
+    await send(memberToken, [{ type: 'correction', personId: String(anna._id), changes: { birthDate: '1950-03-04' } }]);
+    const list = await as(adminToken, request(app).get('/api/requests?status=pending'));
+    assert.equal(list.body[0].items[0].current.birthDate, '1949-01-01');
+    assert.equal(list.body[0].items[0].changes.birthDate, '1950-03-04');
+
+    const stored = await SuggestionRequest.findOne();
+    await as(adminToken, request(app).post(`/api/requests/${stored._id}/items/${stored.items[0]._id}/approve`));
+    const after = await as(adminToken, request(app).get('/api/requests'));
+    assert.equal(after.body[0].items[0].previous.birthDate, '1949-01-01');
+  });
+
   it('applies an approved correction and logs it so it can be restored', async () => {
     const anna = await createPerson(admin, { description: 'old' });
     await send(memberToken, [{ type: 'correction', personId: String(anna._id), changes: { description: 'new', birthDate: '1950-03-04' } }]);

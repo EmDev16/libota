@@ -1,5 +1,8 @@
 // Nederlands. One key per line; the test in test/i18n.test.js keeps all four languages in step.
 export default {
+  dashSuggestText: 'Ontbrekende personen of info toevoegen',
+  suggestPhotoCurrent: 'Huidige foto',
+  suggestPhotoNew: 'Nieuwe foto',
   navSuggest: 'Voorstel',
   suggestTitle: 'Een suggestie doen',
   suggestType: 'Type',

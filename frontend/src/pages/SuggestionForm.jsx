@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { personAPI, requestAPI } from '../api';
+import SuggestionTabs from '../components/SuggestionTabs';
 
 const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description'];
 const MAX_ITEMS = 10;
@@ -146,10 +147,8 @@ const SuggestionForm = () => {
 
   return (
     <div className="person-form suggestion-form">
+      <SuggestionTabs current="new" />
       <h1>{t('suggestTitle')}</h1>
-      <p>
-        <Link to="/my-requests" className="log-back">{t('myRequestsLink')}</Link>
-      </p>
 
       <form onSubmit={handleSubmit}>
         {items.map((it, index) => (

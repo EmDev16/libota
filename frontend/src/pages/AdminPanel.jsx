@@ -326,7 +326,11 @@ const AdminPanel = () => {
 
       <div className="admin-section">
         <h2>{t('requestsTitle')}</h2>
-        <p>{t('requestsCount', { n: pendingRequests, defaultValue: '{{n}} waiting' })}</p>
+        <p>
+          <span className={`pending-pill${pendingRequests > 0 ? ' pending-pill-active' : ''}`}>
+            {t('requestsCount', { n: pendingRequests, defaultValue: '{{n}} waiting' })}
+          </span>
+        </p>
         <Link to="/admin/requests" className="btn-primary log-link">
           {t('requestsOpen')}
         </Link>
