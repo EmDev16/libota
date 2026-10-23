@@ -6,7 +6,7 @@ const photo = (id, width, height) => ({ id, width, height });
 describe('thumbUrl', () => {
   it('asks Cloudinary for a smaller copy', () => {
     expect(thumbUrl('https://res.cloudinary.com/x/image/upload/v1/libota/a.jpg', 600)).toBe(
-      'https://res.cloudinary.com/x/image/upload/w_600,c_limit,f_auto,q_auto/v1/libota/a.jpg'
+      'https://res.cloudinary.com/x/image/upload/w_600,c_limit,f_auto,q_auto:good/v1/libota/a.jpg'
     );
   });
   it('leaves other addresses alone', () => {

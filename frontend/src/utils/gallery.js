@@ -2,9 +2,9 @@
 
 // https://res.cloudinary.com/<cloud>/image/upload/v1/libota/a.jpg -> a smaller copy made by Cloudinary.
 // Photos kept on our own server (and anything else) are returned as they are.
-export const thumbUrl = (url, width) => {
+export const thumbUrl = (url, width, quality = 'good') => {
   if (typeof url !== 'string' || !/^https:\/\/res\.cloudinary\.com\//i.test(url)) return url;
-  return url.replace('/upload/', `/upload/w_${width},c_limit,f_auto,q_auto/`);
+  return url.replace('/upload/', `/upload/w_${width},c_limit,f_auto,q_auto:${quality}/`);
 };
 
 // Width divided by height; photos without a known size count as square

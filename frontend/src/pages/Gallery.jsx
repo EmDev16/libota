@@ -21,7 +21,7 @@ const PersonIcon = () => (
   </svg>
 );
 
-const Lightbox = ({ photo, hasPrev, hasNext, onPrev, onNext, onClose, onTag, onPerson, isAdmin, options, family, onSaved, onDeleted }) => {
+const Lightbox = ({ photo, neighbors, hasPrev, hasNext, onPrev, onNext, onClose, onTag, onPerson, isAdmin, options, family, onSaved, onDeleted }) => {
   const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
@@ -29,6 +29,28 @@ const Lightbox = ({ photo, hasPrev, hasNext, onPrev, onNext, onClose, onTag, onP
   const [error, setError] = useState('');
   const [showTags, setShowTags] = useState(false);
   const [placing, setPlacing] = useState(-1);
+
+  // the small copy (already loaded in the grid) shows at once; the sharp one replaces it when it is ready
+  const lowSrc = thumbUrl(photoUrl(photo.image), 600);
+  const highSrc = thumbUrl(photoUrl(photo.image), 2560, 'best');
+  const [src, setSrc] = useState(lowSrc);
+  useEffect(() => {
+    setSrc(lowSrc);
+    const img = new Image();
+    img.onload = () => setSrc(highSrc);
+    img.src = highSrc;
+    return () => {
+      img.onload = null;
+    };
+  }, [lowSrc, highSrc]);
+
+  // the next and the previous photo are loaded in advance
+  useEffect(() => {
+    for (const n of neighbors || []) {
+      const img = new Image();
+      img.src = thumbUrl(photoUrl(n.image), 2560, 'best');
+    }
+  }, [neighbors]);
 
   // the keyboard works too: arrows move, Escape closes (not while typing in the edit form)
   useEffect(() => {
@@ -135,7 +157,7 @@ const Lightbox = ({ photo, hasPrev, hasNext, onPrev, onNext, onClose, onTag, onP
           <button type="button" className="lightbox-nav" onClick={onPrev} disabled={!hasPrev} aria-label={t('galleryPrev')}>‹</button>
           <div className="lightbox-photo">
             <img
-              src={thumbUrl(photoUrl(photo.image), 1600)}
+              src={src}
               alt={photo.caption || ''}
               className={`lightbox-image${editing && placing >= 0 ? ' placing' : ''}`}
               onClick={onImageClick}
@@ -355,6 +377,10 @@ const Gallery = () => {
   const columns = useMemo(() => layoutColumns(filtered, columnCount(width)), [filtered, width]);
 
   const openIndex = filtered.findIndex((p) => p.id === openId);
+  const neighborsOf = useMemo(
+    () => [filtered[openIndex - 1], filtered[openIndex + 1]].filter(Boolean),
+    [filtered, openIndex]
+  );
   const filtering = album || year || tag || query || person;
   const personName = person ? (tagged.find(([k]) => k === person) || [])[1] : '';
 
@@ -432,6 +458,7 @@ const Gallery = () => {
                     src={thumbUrl(photoUrl(p.image), 600)}
                     alt={p.caption || ''}
                     loading="lazy"
+                    decoding="async"
                     style={p.width && p.height ? { aspectRatio: `${p.width} / ${p.height}` } : undefined}
                   />
                 </button>
@@ -444,6 +471,7 @@ const Gallery = () => {
       {openIndex >= 0 && (
         <Lightbox
           photo={filtered[openIndex]}
+          neighbors={neighborsOf}
           hasPrev={openIndex > 0}
           hasNext={openIndex < filtered.length - 1}
           onPrev={() => setOpenId(filtered[openIndex - 1].id)}
