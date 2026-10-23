@@ -38,7 +38,7 @@ const Requests = () => {
     try {
       const res = await requestAPI.approve(request._id, item._id);
       // a new person still has to be linked to their family
-      if (item.type !== 'correction') navigate(`/people/${res.data.personId}/edit`);
+      if (item.type === 'newPerson' || item.type === 'me') navigate(`/people/${res.data.personId}/edit`);
       else await load();
     } catch (error) {
       alert(error.response?.data?.error || t('error'));
@@ -95,7 +95,7 @@ const Requests = () => {
                 {item.status === 'pending' ? (
                   <div className="request-actions">
                     <button type="button" className="btn-primary" disabled={busy === item._id} onClick={() => approve(r, item)}>
-                      {item.type === 'correction' ? t('requestApprove') : t('requestApproveOpen')}
+                      {item.type === 'newPerson' || item.type === 'me' ? t('requestApproveOpen') : t('requestApprove')}
                     </button>
                     <button type="button" className="btn-secondary" disabled={busy === item._id} onClick={() => reject(r, item)}>
                       {t('requestReject')}

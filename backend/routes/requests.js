@@ -9,6 +9,8 @@ const SuggestionRequest = require('../models/SuggestionRequest');
 const { auth, adminAuth } = require('../middleware/auth');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
 const { logEvent, personSnapshot } = require('../utils/audit');
+const GalleryPhoto = require('../models/GalleryPhoto');
+const { cleanMeta, Invalid: InvalidMeta, GALLERY_SIZE, photoName } = require('./gallery');
 
 const router = express.Router();
 
@@ -78,6 +80,12 @@ const cleanItem = async (raw, hasPhoto) => {
     return { type: 'correction', note, personId: person._id, personName: `${person.firstName} ${person.lastName}`, changes };
   }
 
+  if (raw.type === 'photo') {
+    if (!hasPhoto) throw new Invalid('Choose a photo');
+    const gallery = cleanMeta(raw.gallery);
+    return { type: 'photo', note, gallery };
+  }
+
   if (raw.type === 'newPerson' || raw.type === 'me') {
     const newPerson = cleanPersonFields(raw.newPerson, { requireNames: true });
     return { type: raw.type, note, newPerson, relation: clean(raw.relation, LIMITS.relation) };
@@ -119,7 +127,8 @@ router.post('/', memberOnly, uploadPhotos, async (req, res) => {
     for (let i = 0; i < items.length; i += 1) {
       const file = files.get(`photo_${i}`);
       if (file) {
-        items[i].photo = await savePhoto(file);
+        // gallery photos are kept larger than profile photos
+        items[i].photo = await savePhoto(file, items[i].type === 'photo' ? { maxSize: GALLERY_SIZE } : {});
         saved.push(items[i].photo);
       }
     }
@@ -140,7 +149,7 @@ router.post('/', memberOnly, uploadPhotos, async (req, res) => {
     res.status(201).json({ id: request._id, count: items.length });
   } catch (error) {
     for (const photo of saved) await removePhoto(photo);
-    if (error instanceof Invalid) return res.status(400).json({ error: error.message });
+    if (error instanceof Invalid || error instanceof InvalidMeta) return res.status(400).json({ error: error.message });
     console.error('Sending suggestions failed:', error);
     res.status(500).json({ error: 'Something went wrong' });
   }
@@ -272,6 +281,33 @@ router.post('/:id/items/:itemId/approve', adminAuth, async (req, res) => {
         before,
         after: await personSnapshot(await Person.findById(person._id))
       });
+    } else if (item.type === 'photo') {
+      // the admin can still change caption, tags and so on in the gallery afterwards
+      const g = item.gallery || {};
+      const photo = await GalleryPhoto.create({
+        image: item.photo,
+        width: g.width || null,
+        height: g.height || null,
+        caption: g.caption || '',
+        album: g.album || '',
+        tags: g.tags || [],
+        takenYear: g.takenYear || null,
+        takenDate: g.takenDate || null,
+        createdBy: req.user._id
+      });
+      await logEvent(req, {
+        action: 'gallery.create',
+        targetType: 'photo',
+        targetId: photo._id,
+        targetName: photoName(photo),
+        message: `Approved suggestion from ${request.senderName} (${request.account})`
+      });
+      item.status = 'approved';
+      item.handledAt = new Date();
+      item.handledBy = req.user.username;
+      await request.save();
+      await logEvent(req, { action: 'request.approve', targetType: 'request', targetId: request._id, targetName: request.senderName });
+      return res.json({ message: 'Approved', photoId: photo._id });
     } else {
       const n = item.newPerson || {};
       const person = await Person.create({

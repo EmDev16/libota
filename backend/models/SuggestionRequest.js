@@ -7,7 +7,7 @@ const RETENTION_SECONDS = 365 * 24 * 60 * 60;
 const itemSchema = new mongoose.Schema({
   // correction: add or fix information about a person who is in the tree
   // newPerson : somebody is missing; me: the member is missing themselves
-  type: { type: String, enum: ['correction', 'newPerson', 'me'], required: true },
+  type: { type: String, enum: ['correction', 'newPerson', 'me', 'photo'], required: true },
   note: { type: String, default: '' },
   photo: { type: String, default: null },
 
@@ -16,6 +16,9 @@ const itemSchema = new mongoose.Schema({
   personName: { type: String, default: '' },
   changes: { type: mongoose.Schema.Types.Mixed, default: null }, // { firstName, lastName, birthDate, deathDate, gender, description }
   previous: { type: mongoose.Schema.Types.Mixed, default: null }, // the old values of what an approved correction changed
+
+  // photo: a photo for the gallery { caption, album, tags, takenYear, takenDate, width, height }
+  gallery: { type: mongoose.Schema.Types.Mixed, default: null },
 
   // newPerson / me
   newPerson: { type: mongoose.Schema.Types.Mixed, default: null }, // { firstName, lastName, birthDate, deathDate, gender, description }

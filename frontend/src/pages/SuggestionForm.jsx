@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { personAPI, requestAPI } from '../api';
 import SuggestionTabs from '../components/SuggestionTabs';
+import { parseTags, readImageSize } from '../utils/gallery';
 
 const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description'];
 const MAX_ITEMS = 10;
@@ -15,6 +16,7 @@ const emptyItem = (type = 'correction') => ({
   current: null, // what the person has now, to send only what the member changed
   values: { firstName: '', lastName: '', birthDate: '', deathDate: '', gender: 'female', description: '' },
   relation: '',
+  gallery: { caption: '', year: '', album: '', tags: '' }, // for a photo of the gallery
   note: '',
   photo: null
 });
@@ -36,6 +38,8 @@ const SuggestionForm = () => {
   }, [t]);
 
   const update = (key, patch) => setItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+  const setGallery = (key, field, value) =>
+    setItems((list) => list.map((it) => (it.key === key ? { ...it, gallery: { ...it.gallery, [field]: value } } : it)));
   const setValue = (key, field, value) =>
     setItems((list) => list.map((it) => (it.key === key ? { ...it, values: { ...it.values, [field]: value } } : it)));
 
@@ -82,6 +86,24 @@ const SuggestionForm = () => {
           return;
         }
         payload.push({ type: 'correction', personId: it.personId, changes, note: it.note });
+      } else if (it.type === 'photo') {
+        if (!it.photo) {
+          setError(t('galleryChoose'));
+          return;
+        }
+        const size = await readImageSize(it.photo);
+        payload.push({
+          type: 'photo',
+          gallery: {
+            caption: it.gallery.caption,
+            year: it.gallery.year,
+            album: it.gallery.album,
+            tags: parseTags(it.gallery.tags),
+            width: size.width,
+            height: size.height
+          },
+          note: it.note
+        });
       } else {
         payload.push({ type: it.type, newPerson: it.values, relation: it.relation, note: it.note });
       }
@@ -160,6 +182,7 @@ const SuggestionForm = () => {
                 <option value="correction">{t('suggestTypeFix')}</option>
                 <option value="newPerson">{t('suggestTypeNew')}</option>
                 <option value="me">{t('suggestTypeMe')}</option>
+                <option value="photo">{t('suggestTypePhoto')}</option>
               </select>
             </div>
 
@@ -178,16 +201,46 @@ const SuggestionForm = () => {
               </div>
             )}
 
-            {(it.type !== 'correction' || it.personId) && personFields(it)}
+            {it.type !== 'photo' && (it.type !== 'correction' || it.personId) && personFields(it)}
 
-            {it.type !== 'correction' && (
+            {it.type === 'photo' && (
+              <>
+                <div className="form-group">
+                  <label>{t('photo')} *</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => update(it.key, { photo: e.target.files[0] || null })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryCaption')}</label>
+                  <input type="text" value={it.gallery.caption} maxLength={300} onChange={(e) => setGallery(it.key, 'caption', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryYear')}</label>
+                  <input type="number" min="1800" value={it.gallery.year} onChange={(e) => setGallery(it.key, 'year', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryAlbum')}</label>
+                  <input type="text" value={it.gallery.album} maxLength={80} onChange={(e) => setGallery(it.key, 'album', e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryTags')}</label>
+                  <input type="text" value={it.gallery.tags} onChange={(e) => setGallery(it.key, 'tags', e.target.value)} />
+                  <small>{t('galleryTagsHint')}</small>
+                </div>
+              </>
+            )}
+
+            {(it.type === 'newPerson' || it.type === 'me') && (
               <div className="form-group">
                 <label>{t('suggestRelation')}</label>
                 <input type="text" value={it.relation} maxLength={200} onChange={(e) => update(it.key, { relation: e.target.value })} />
               </div>
             )}
 
-            {(it.type !== 'correction' || it.personId) && (
+            {it.type !== 'photo' && (it.type !== 'correction' || it.personId) && (
               <div className="form-group">
                 <label>{t('photo')}</label>
                 <input
