@@ -38,12 +38,12 @@ const Navbar = () => {
       </button>
       {user && <SearchBox />}
       <div className="nav-links">
-        <Link to="/dashboard">{t('dashboard')}</Link>
-        <Link to="/tree">{t('familyTree')}</Link>
-        <Link to="/people">{t('allPeople')}</Link>
-        <Link to="/timeline">{t('timeline', 'Timeline')}</Link>
-        <Link to="/relationship">{t('relationshipFinder')}</Link>
-        {isAdmin && <Link to="/admin">{t('adminPanel')}</Link>}
+        <Link to="/dashboard">{t('navDashboard')}</Link>
+        <Link to="/tree">{t('navTree')}</Link>
+        <Link to="/people">{t('navPeople')}</Link>
+        <Link to="/timeline">{t('navTimeline')}</Link>
+        <Link to="/relationship">{t('navRelationship')}</Link>
+        {isAdmin && <Link to="/admin">{t('navAdmin')}</Link>}
       </div>
       <div className="nav-user">
         <select

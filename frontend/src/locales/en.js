@@ -1,5 +1,11 @@
 // English. One key per line; the test in test/i18n.test.js keeps all four languages in step.
 export default {
+  navDashboard: 'Dashboard',
+  navTree: 'Family Tree',
+  navPeople: 'People',
+  navTimeline: 'Timeline',
+  navRelationship: 'Relationships',
+  navAdmin: 'Admin',
   addPerson: 'Add Person',
   addUser: 'Add User',
   admin: 'Admin',
