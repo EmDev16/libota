@@ -90,4 +90,13 @@ export const requestAPI = {
   reject: (id, itemId, reason) => api.post(`/requests/${id}/items/${itemId}/reject`, { reason })
 };
 
+export const galleryAPI = {
+  list: () => api.get('/gallery'),
+  add: (formData) => api.post('/gallery', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  update: (id, details) => api.put(`/gallery/${id}`, details),
+  remove: (id) => api.delete(`/gallery/${id}`)
+};
+
 export default api;

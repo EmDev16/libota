@@ -50,6 +50,7 @@ const Navbar = () => {
         <Link to="/tree">{t('navTree')}</Link>
         <Link to="/people">{t('navPeople')}</Link>
         <Link to="/timeline">{t('navTimeline')}</Link>
+        <Link to="/gallery">{t('navGallery')}</Link>
         <Link to="/relationship">{t('navRelationship')}</Link>
         {!isAdmin && user && <Link to="/suggest">{t('navSuggest')}</Link>}
         {isAdmin && (

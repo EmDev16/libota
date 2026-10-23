@@ -1739,3 +1739,41 @@ small { color: var(--muted); }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ---------- Gallery ---------- */
+.gallery-page { max-width: 1200px; margin: 0 auto; }
+.gallery-tags { margin-bottom: 0.75rem; }
+.gallery-count { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0.75rem; }
+.gallery-clear { margin-left: 0.75rem; background: none; border: none; padding: 0; color: var(--copper-dark); font: inherit; text-decoration: underline; cursor: pointer; }
+.gallery-columns { display: flex; gap: 0.6rem; align-items: flex-start; }
+.gallery-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.gallery-item { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); overflow: hidden; cursor: pointer; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.07); }
+.gallery-item:hover { border-color: var(--copper); }
+.gallery-item img { display: block; width: 100%; height: auto; }
+
+.lightbox { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(42, 35, 25, 0.88); overflow-y: auto; }
+.lightbox-card { position: relative; width: min(1000px, 100%); max-height: 100%; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius); border: 1px solid var(--line); overflow: hidden; }
+.lightbox-close { position: absolute; top: 0.4rem; right: 0.5rem; z-index: 2; width: 36px; height: 36px; border: none; border-radius: var(--radius); background: rgba(255, 255, 255, 0.9); color: var(--ink); font-size: 1.6rem; line-height: 1; cursor: pointer; }
+.lightbox-stage { display: flex; align-items: center; justify-content: center; background: #1b1610; min-height: 0; }
+.lightbox-image { display: block; max-width: 100%; max-height: 70vh; object-fit: contain; flex: 1 1 auto; min-width: 0; }
+.lightbox-nav { flex: 0 0 auto; width: 44px; align-self: stretch; border: none; background: transparent; color: #fff; font-size: 2rem; cursor: pointer; }
+.lightbox-nav:disabled { opacity: 0.25; cursor: default; }
+.lightbox-info { padding: 0.9rem 1.1rem 1.1rem; overflow-y: auto; }
+.lightbox-caption { font-weight: 600; margin: 0 0 0.25rem; overflow-wrap: anywhere; }
+.lightbox-meta { color: var(--muted); font-size: 0.9rem; margin: 0 0 0.6rem; }
+.gallery-fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.upload-list { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+.upload-item { display: flex; gap: 0.75rem; align-items: center; padding: 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--soft); flex-wrap: wrap; }
+.upload-preview { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius); border: 2px solid var(--copper); flex: 0 0 auto; }
+.upload-fields { flex: 1 1 200px; min-width: 0; display: grid; gap: 0.4rem; }
+.upload-fields input { width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius); font: inherit; background: var(--card); }
+.upload-item .btn-secondary { width: auto; padding: 0.4rem 0.9rem; }
+
+@media (max-width: 600px) {
+  .gallery-columns, .gallery-col { gap: 0.4rem; }
+  .lightbox { padding: 0; }
+  .lightbox-card { width: 100%; min-height: 100%; border-radius: 0; }
+  .lightbox-nav { width: 34px; }
+  .gallery-fields-row { grid-template-columns: 1fr; }
+}
