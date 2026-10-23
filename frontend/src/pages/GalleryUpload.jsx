@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { galleryAPI } from '../api';
-import { parseTags, readImageSize } from '../utils/gallery';
+import { readImageSize } from '../utils/gallery';
+import TagInput from '../components/TagInput';
 
 const MAX_FILES = 20;
 
@@ -11,10 +12,16 @@ const GalleryUpload = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [files, setFiles] = useState([]); // { key, file, preview, caption, date }
-  const [common, setCommon] = useState({ album: '', year: '', tags: '' });
+  const [common, setCommon] = useState({ album: '', year: '', tags: [], hiddenTags: [] });
+  const [options, setOptions] = useState({ albums: [], tags: [], hiddenTags: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const previews = useRef([]);
+
+  // what already exists, so albums and tags are picked instead of typed again
+  useEffect(() => {
+    galleryAPI.options().then((res) => setOptions(res.data)).catch(() => {});
+  }, []);
 
   // the previews are released when the page closes
   useEffect(() => () => previews.current.forEach((url) => URL.revokeObjectURL(url)), []);
@@ -47,7 +54,6 @@ const GalleryUpload = () => {
     setBusy(true);
     setError('');
     try {
-      const tags = parseTags(common.tags);
       const items = [];
       for (const f of files) {
         const size = await readImageSize(f.file);
@@ -56,7 +62,8 @@ const GalleryUpload = () => {
           date: f.date,
           year: f.date ? '' : common.year,
           album: common.album,
-          tags,
+          tags: common.tags,
+          hiddenTags: common.hiddenTags,
           width: size.width,
           height: size.height
         });
@@ -89,7 +96,8 @@ const GalleryUpload = () => {
             <h2>{t('galleryCommon')}</h2>
             <div className="form-group">
               <label>{t('galleryAlbum')}</label>
-              <input type="text" value={common.album} maxLength={80} onChange={(e) => setCommon({ ...common, album: e.target.value })} />
+              <TagInput single hashtag={false} value={common.album} options={options.albums} onChange={(album) => setCommon({ ...common, album })} />
+              <small>{t('galleryAlbumHint')}</small>
             </div>
             <div className="form-group">
               <label>{t('galleryYear')}</label>
@@ -97,8 +105,17 @@ const GalleryUpload = () => {
             </div>
             <div className="form-group">
               <label>{t('galleryTags')}</label>
-              <input type="text" value={common.tags} onChange={(e) => setCommon({ ...common, tags: e.target.value })} />
+              <TagInput value={common.tags} options={options.tags} onChange={(tags) => setCommon({ ...common, tags })} />
               <small>{t('galleryTagsHint')}</small>
+            </div>
+            <div className="form-group">
+              <label>{t('galleryHiddenTags')}</label>
+              <TagInput
+                value={common.hiddenTags}
+                options={[...new Set([...(options.hiddenTags || []), 'timeline'])]}
+                onChange={(hiddenTags) => setCommon({ ...common, hiddenTags })}
+              />
+              <small>{t('galleryHiddenHint')}</small>
             </div>
 
             <ul className="upload-list">

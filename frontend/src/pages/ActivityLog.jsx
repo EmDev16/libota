@@ -15,6 +15,7 @@ const ACTIONS = {
   'auth.delete-user': 'logAccountDeleted',
   'data.import': 'logImport',
   'data.export': 'logExport',
+  'auth.gallery': 'logGalleryAccess',
   'gallery.create': 'logGalleryAdded',
   'gallery.update': 'logGalleryEdited',
   'gallery.delete': 'logGalleryDeleted',

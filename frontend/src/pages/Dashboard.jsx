@@ -269,20 +269,29 @@ const Dashboard = () => {
           <h2>{t('familyTree')}</h2>
           <p>{t('viewTree')}</p>
         </div>
-        <div className="dashboard-card" onClick={() => navigate('/people')}>
-          <h2>{t('allPeople')}</h2>
-          <p>{t('viewList')}</p>
-        </div>
+        {isAdmin ? (
+          <div className="dashboard-card" onClick={() => navigate('/people')}>
+            <h2>{t('allPeople')}</h2>
+            <p>{t('viewList')}</p>
+          </div>
+        ) : (
+          <div className="dashboard-card" onClick={() => navigate('/gallery')}>
+            <h2>{t('galleryTitle')}</h2>
+            <p>{t('dashGalleryText')}</p>
+          </div>
+        )}
         {isAdmin && (
           <div className="dashboard-card" onClick={() => navigate('/people/new')}>
             <h2>{t('addPerson')}</h2>
             <p>{t('createSuccess')}</p>
           </div>
         )}
-        <div className="dashboard-card" onClick={() => navigate('/relationship')}>
-          <h2>{t('relationshipFinder')}</h2>
-          <p>{t('findRelationship')}</p>
-        </div>
+        {!isAdmin && (
+          <div className="dashboard-card" onClick={() => navigate('/relationship')}>
+            <h2>{t('relationshipFinder')}</h2>
+            <p>{t('findRelationship')}</p>
+          </div>
+        )}
         {!isAdmin && (
           <div className="dashboard-card" onClick={() => navigate('/suggest')}>
             <h2>{t('suggestTitle')}</h2>

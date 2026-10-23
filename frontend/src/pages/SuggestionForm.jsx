@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { personAPI, requestAPI } from '../api';
+import { personAPI, requestAPI, galleryAPI } from '../api';
 import SuggestionTabs from '../components/SuggestionTabs';
-import { parseTags, readImageSize } from '../utils/gallery';
+import { readImageSize } from '../utils/gallery';
+import TagInput from '../components/TagInput';
+import PeopleTagger from '../components/PeopleTagger';
 
 const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description'];
 const MAX_ITEMS = 10;
@@ -16,7 +18,7 @@ const emptyItem = (type = 'correction') => ({
   current: null, // what the person has now, to send only what the member changed
   values: { firstName: '', lastName: '', birthDate: '', deathDate: '', gender: 'female', description: '' },
   relation: '',
-  gallery: { caption: '', year: '', album: '', tags: '' }, // for a photo of the gallery
+  gallery: { caption: '', year: '', album: '', tags: [], people: [] }, // for a photo of the gallery
   note: '',
   photo: null
 });
@@ -29,6 +31,7 @@ const SuggestionForm = () => {
   const [people, setPeople] = useState([]);
   const [items, setItems] = useState(() => [emptyItem()]);
   const [sender, setSender] = useState('');
+  const [options, setOptions] = useState({ albums: [], tags: [], names: [] });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const fileInputs = useRef({});
@@ -36,6 +39,11 @@ const SuggestionForm = () => {
   useEffect(() => {
     personAPI.getAll().then((res) => setPeople(res.data)).catch(() => setError(t('error')));
   }, [t]);
+
+  // existing albums, tags and names, so a member picks them instead of typing a near-copy
+  useEffect(() => {
+    galleryAPI.options().then((res) => setOptions(res.data)).catch(() => {});
+  }, []);
 
   const update = (key, patch) => setItems((list) => list.map((it) => (it.key === key ? { ...it, ...patch } : it)));
   const setGallery = (key, field, value) =>
@@ -98,7 +106,8 @@ const SuggestionForm = () => {
             caption: it.gallery.caption,
             year: it.gallery.year,
             album: it.gallery.album,
-            tags: parseTags(it.gallery.tags),
+            tags: it.gallery.tags,
+            people: it.gallery.people,
             width: size.width,
             height: size.height
           },
@@ -223,12 +232,21 @@ const SuggestionForm = () => {
                 </div>
                 <div className="form-group">
                   <label>{t('galleryAlbum')}</label>
-                  <input type="text" value={it.gallery.album} maxLength={80} onChange={(e) => setGallery(it.key, 'album', e.target.value)} />
+                  <TagInput single hashtag={false} value={it.gallery.album} options={options.albums} onChange={(v) => setGallery(it.key, 'album', v)} />
                 </div>
                 <div className="form-group">
                   <label>{t('galleryTags')}</label>
-                  <input type="text" value={it.gallery.tags} onChange={(e) => setGallery(it.key, 'tags', e.target.value)} />
+                  <TagInput value={it.gallery.tags} options={options.tags} onChange={(v) => setGallery(it.key, 'tags', v)} />
                   <small>{t('galleryTagsHint')}</small>
+                </div>
+                <div className="form-group">
+                  <label>{t('galleryPeople')}</label>
+                  <PeopleTagger
+                    value={it.gallery.people}
+                    onChange={(v) => setGallery(it.key, 'people', v)}
+                    family={people}
+                    outsiders={options.names}
+                  />
                 </div>
               </>
             )}
