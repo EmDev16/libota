@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authAPI, exportAPI } from '../api';
+import { LANGUAGES } from '../i18n';
 
 // Accepts a plain array of people, or an object like { people: [...] }
 const extractPeople = (parsed) => {
@@ -92,12 +93,12 @@ const AdminPanel = () => {
 
   const handleResetPassword = async (user) => {
     const newPassword = window.prompt(
-      t('resetPasswordPrompt', `New password for ${user.username} (at least 8 characters, with a letter and a number):`)
+      t('resetPasswordPrompt', { name: user.username })
     );
     if (!newPassword) return;
     try {
       await authAPI.resetUserPassword(user._id, newPassword);
-      alert(t('passwordResetDone', `Done. ${user.username} must log in again with the new password.`));
+      alert(t('passwordResetDone', { name: user.username }));
     } catch (error) {
       console.error('Error resetting password:', error);
       alert(error.response?.status === 400 ? error.response.data.error : t('error'));
@@ -254,10 +255,11 @@ const AdminPanel = () => {
                 value={newUser.language}
                 onChange={(e) => setNewUser({ ...newUser, language: e.target.value })}
               >
-                <option value="fr">Français</option>
-                <option value="en">English</option>
-                <option value="ln">Lingala</option>
-                <option value="nl">Nederlands</option>
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
               </select>
             </div>
             {newUser.role === 'member' && (

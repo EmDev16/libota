@@ -15,10 +15,11 @@ import ActivityLog from './pages/ActivityLog';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
+  const { t } = useTranslation();
   const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
-    return <div className="loading">{user ? 'Loading...' : 'Loading...'}</div>;
+    return <div className="loading">{t('loading')}</div>;
   }
 
   if (!user) {
