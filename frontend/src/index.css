@@ -1325,40 +1325,6 @@ small { color: var(--muted); }
 
 /* ---------- Tablet and phone ---------- */
 @media (max-width: 860px) {
-  .navbar { padding: 0 1rem; flex-wrap: wrap; }
-  .nav-brand { min-height: var(--nav-h); display: flex; align-items: center; }
-  .nav-toggle {
-    display: inline-flex;
-    margin-left: auto;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    background: transparent;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    color: var(--ink);
-    font-size: 1.4rem;
-    cursor: pointer;
-  }
-  /* the menu is hidden until the button is pressed */
-  .nav-links, .nav-user { display: none; width: 100%; }
-  .navbar.open .nav-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    border-top: 1px solid var(--line);
-  }
-  .navbar.open .nav-links a {
-    padding: 0.9rem 0.25rem;
-    border-bottom: 1px solid var(--line);
-    min-height: 44px;
-  }
-  .navbar.open .nav-user {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.75rem 0 1rem;
-  }
   .main-content { padding: 1rem; }
   .dashboard, .person-list { padding: 0; }
   .person-form, .relationship-finder, .admin-section { padding: 1.25rem; }
@@ -1611,7 +1577,56 @@ small { color: var(--muted); }
 .timeline-name { font-weight: 500; flex: 1; }
 .timeline-age { color: var(--muted); font-size: 0.85rem; }
 
-@media (max-width: 860px) {
+.wake-note { background: var(--copper-tint); border: 1px solid var(--copper-line); color: var(--ink); padding: 0.6rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 0.9rem; }
+
+/* Language picker in the navbar */
+.lang-select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+/* The menu folds into the ☰ button on anything narrower than a laptop: with longer words (French,
+   Dutch) the links no longer fit next to the search box and the language picker. */
+@media (max-width: 1100px) {
+  .navbar { padding: 0 1rem; flex-wrap: wrap; }
+  .nav-brand { min-height: var(--nav-h); display: flex; align-items: center; }
+  .nav-toggle {
+    display: inline-flex;
+    margin-left: auto;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+  /* the menu is hidden until the button is pressed */
+  .nav-links, .nav-user { display: none; width: 100%; }
+  .navbar.open .nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--line);
+  }
+  .navbar.open .nav-links a {
+    padding: 0.9rem 0.25rem;
+    border-bottom: 1px solid var(--line);
+    min-height: 44px;
+  }
+  .navbar.open .nav-user {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0 1rem;
+  }
   /* on a phone the search sits inside the opened menu */
   .nav-search { display: none; flex: 1 1 100%; padding-bottom: 0.5rem; }
   .navbar.open .nav-search { display: block; order: 2; }
@@ -1620,4 +1635,17 @@ small { color: var(--muted); }
   .search-results { position: static; margin-top: 4px; max-height: 50vh; }
 }
 
-.wake-note { background: var(--copper-tint); border: 1px solid var(--copper-line); color: var(--ink); padding: 0.6rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 0.9rem; }
+/* Long words never push things out of their card */
+.dashboard-card h2, .dashboard-card p, .stat-label, .insight-card h2, .person-details h3, .person-details p,
+.user-info, .timeline-name, .path-card, .checkbox-label {
+  overflow-wrap: anywhere;
+}
+.btn-primary, .btn-secondary, .btn-danger, .btn-logout, .chip { overflow-wrap: anywhere; }
+.list-header { flex-wrap: wrap; gap: 0.75rem; }
+.list-header .btn-primary { width: auto; }
+.person-card-item { flex-wrap: wrap; }
+.person-card-item .person-details { flex: 1 1 140px; min-width: 0; }
+.person-actions { flex-wrap: wrap; margin-left: auto; }
+.facts dd { min-width: 0; overflow-wrap: anywhere; }
+.spouse-order > div { flex-wrap: wrap; }
+.nav-links { flex-wrap: wrap; row-gap: 0.25rem; }

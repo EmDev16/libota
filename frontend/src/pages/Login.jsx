@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { LANGUAGES, setLanguage } from '../i18n';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [language, setLanguage] = useState('fr');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [slow, setSlow] = useState(false); // the server is probably asleep and starting up
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // the language shown now (from the last visit or the browser); changing it switches the page at once
+  const language = i18n.resolvedLanguage || 'en';
 
   // The free server sleeps when nobody used it for 15 minutes; waking up takes up to a minute.
   // After a few seconds of waiting, say so instead of leaving a silent button.
@@ -59,10 +61,11 @@ const Login = () => {
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
             >
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-              <option value="ln">Lingala</option>
-              <option value="nl">Nederlands</option>
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="form-group">
