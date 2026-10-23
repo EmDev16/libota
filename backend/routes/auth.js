@@ -11,6 +11,7 @@ const {
 const { getJwtSecret } = require('../utils/config');
 const { passwordProblem } = require('../utils/password');
 const { logEvent } = require('../utils/audit');
+const { cleanTagList, InvalidTags } = require('../utils/tags');
 
 const router = express.Router();
 
@@ -40,7 +41,7 @@ const serverError = (res, error) => {
 // Register new user (admin only)
 router.post('/register', adminAuth, async (req, res) => {
   try {
-    const { username, password, role, language, showStats } = req.body;
+    const { username, password, role, language, showStats, galleryAll, galleryTags } = req.body;
 
     // Only plain text is accepted: an object such as { "$gt": "" } must never reach the database query
     if (!isText(username) || !username.trim()) {
@@ -64,7 +65,9 @@ router.post('/register', adminAuth, async (req, res) => {
       password,
       role: role || 'member',
       language: LANGUAGES.includes(language) ? language : 'en',
-      showStats: showStats === true
+      showStats: showStats === true,
+      galleryAll: galleryAll === true,
+      galleryTags: cleanTagList(galleryTags, 30)
     });
 
     await user.save();
@@ -72,6 +75,7 @@ router.post('/register', adminAuth, async (req, res) => {
 
     res.status(201).json({ user: publicUser(user) });
   } catch (error) {
+    if (error instanceof InvalidTags) return res.status(400).json({ error: error.message });
     await logEvent(req, { action: 'auth.register', status: 'fail', targetType: 'user', message: 'Server error' });
     serverError(res, error);
   }
@@ -225,6 +229,35 @@ router.put('/users/:id/stats', adminAuth, async (req, res) => {
     });
     res.json(user);
   } catch (error) {
+    if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
+    serverError(res, error);
+  }
+});
+
+// Choose which hidden gallery tags an account may see, or all photos (admin only)
+router.put('/users/:id/gallery', adminAuth, async (req, res) => {
+  try {
+    if (typeof req.body.galleryAll !== 'boolean') {
+      return res.status(400).json({ error: 'galleryAll must be true or false' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { galleryAll: req.body.galleryAll, galleryTags: cleanTagList(req.body.galleryTags, 30) },
+      { new: true }
+    ).select('-password -passwordChangedAt');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    await logEvent(req, {
+      action: 'auth.gallery',
+      targetType: 'user',
+      targetId: user._id,
+      targetName: user.username,
+      message: user.galleryAll ? 'all photos' : user.galleryTags.map((t) => `#${t}`).join(' ') || 'open photos only'
+    });
+    res.json(user);
+  } catch (error) {
+    if (error instanceof InvalidTags) return res.status(400).json({ error: error.message });
     if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
     serverError(res, error);
   }

@@ -6,6 +6,8 @@ const { startDb, stopDb, clearDb, createUser, tokenFor } = require('./helpers');
 const app = require('../app');
 const GalleryPhoto = require('../models/GalleryPhoto');
 const SuggestionRequest = require('../models/SuggestionRequest');
+const User = require('../models/User');
+const { createPerson } = require('./helpers');
 
 // A real 1x1 PNG
 const PNG = Buffer.from(
@@ -124,5 +126,146 @@ describe('gallery', () => {
     const res = await as(memberToken, request(app).post('/api/requests'))
       .field('items', JSON.stringify([{ type: 'photo', gallery: { caption: 'x' } }]));
     assert.equal(res.status, 400);
+  });
+  describe('hidden tags', () => {
+    const list = async (token, q = '') => (await as(token, request(app).get(`/api/gallery${q}`))).body;
+
+    beforeEach(async () => {
+      await upload(adminToken, [
+        { caption: 'open' },
+        { caption: 'mbala only', hiddenTags: ['#Mbala'] },
+        { caption: 'other family', hiddenTags: ['kabila'] },
+        { caption: 'timeline open', hiddenTags: ['timeline'], year: 2001 },
+        { caption: 'timeline and mbala', hiddenTags: ['timeline', 'mbala'], year: 2002 }
+      ]);
+    });
+
+    it('shows a member only open photos by default', async () => {
+      const names = (await list(memberToken)).map((p) => p.caption).sort();
+      assert.deepEqual(names, ['open', 'timeline open']);
+    });
+
+    it('shows photos with a hidden tag the account has', async () => {
+      await User.updateOne({ username: 'maria' }, { galleryTags: ['mbala'] });
+      const names = (await list(memberToken)).map((p) => p.caption).sort();
+      assert.deepEqual(names, ['mbala only', 'open', 'timeline and mbala', 'timeline open']);
+    });
+
+    it('shows everything to a member with all photos, and to an admin', async () => {
+      await User.updateOne({ username: 'maria' }, { galleryAll: true });
+      assert.equal((await list(memberToken)).length, 5);
+      assert.equal((await list(adminToken)).length, 5);
+    });
+
+    it('only gives hidden tags to admins', async () => {
+      const member = await list(memberToken);
+      assert.ok(member.every((p) => p.hiddenTags === undefined));
+      const adminList = await list(adminToken);
+      assert.deepEqual(adminList.find((p) => p.caption === 'mbala only').hiddenTags, ['mbala']);
+    });
+
+    it('puts photos with the timeline tag on the timeline', async () => {
+      const t = await list(adminToken, '?timeline=1');
+      assert.deepEqual(t.map((p) => p.caption).sort(), ['timeline and mbala', 'timeline open']);
+      assert.ok(t.every((p) => p.inTimeline));
+      const memberT = await list(memberToken, '?timeline=1');
+      assert.deepEqual(memberT.map((p) => p.caption), ['timeline open']);
+    });
+
+    it('does not let a member set hidden tags through a suggestion', async () => {
+      const sent = await as(memberToken, request(app).post('/api/requests'))
+        .field('items', JSON.stringify([{ type: 'photo', gallery: { caption: 'x', hiddenTags: ['mbala'] } }]))
+        .attach('photo_0', PNG, { filename: 'a.png', contentType: 'image/png' });
+      assert.equal(sent.status, 201);
+      const stored = await SuggestionRequest.findOne();
+      await as(adminToken, request(app).post(`/api/requests/${stored._id}/items/${stored.items[0]._id}/approve`));
+      const photo = await GalleryPhoto.findOne({ caption: 'x' });
+      assert.deepEqual(photo.hiddenTags, []);
+    });
+  });
+
+  describe('people on photos', () => {
+    it('tags a family member and somebody outside the family, and creates nobody', async () => {
+      const anna = await createPerson(admin._id);
+      const before = await require('../models/Person').countDocuments();
+      const res = await upload(adminToken, [
+        { people: [{ personId: String(anna._id), name: 'ignored', x: 40, y: 30 }, { name: ' Uncle  Bob ', x: 70, y: 20 }, { name: 'Not placed' }] }
+      ]);
+      assert.equal(res.status, 201);
+      const people = res.body[0].people;
+      assert.equal(people[0].name, `${anna.firstName} ${anna.lastName}`);
+      assert.equal(people[0].personId, String(anna._id));
+      assert.equal(people[1].name, 'Uncle Bob');
+      assert.equal(people[1].personId, null);
+      assert.equal(people[2].x, null);
+      assert.equal(await require('../models/Person').countDocuments(), before);
+    });
+
+    it('finds all photos of a person', async () => {
+      const anna = await createPerson(admin._id);
+      await upload(adminToken, [
+        { caption: 'with anna', people: [{ personId: String(anna._id), x: 1, y: 1 }] },
+        { caption: 'with bob', people: [{ name: 'Bob' }] },
+        { caption: 'nobody' }
+      ]);
+      const byId = await as(memberToken, request(app).get(`/api/gallery?person=${anna._id}`));
+      assert.deepEqual(byId.body.map((p) => p.caption), ['with anna']);
+      const byName = await as(memberToken, request(app).get('/api/gallery?person=bob'));
+      assert.deepEqual(byName.body.map((p) => p.caption), ['with bob']);
+    });
+
+    it('refuses bad people', async () => {
+      assert.equal((await upload(adminToken, [{ people: [{ personId: '507f1f77bcf86cd799439011' }] }])).status, 400);
+      assert.equal((await upload(adminToken, [{ people: [{ personId: 'nope' }] }])).status, 400);
+      assert.equal((await upload(adminToken, [{ people: [{ name: '' }] }])).status, 400);
+      assert.equal((await upload(adminToken, [{ people: [{ name: 'A', x: 150, y: 10 }] }])).status, 400);
+      assert.equal((await upload(adminToken, [{ people: 'x' }])).status, 400);
+    });
+
+    it('keeps a member suggestion people list', async () => {
+      await as(memberToken, request(app).post('/api/requests'))
+        .field('items', JSON.stringify([{ type: 'photo', gallery: { people: [{ name: 'Cousin Jo' }] } }]))
+        .attach('photo_0', PNG, { filename: 'a.png', contentType: 'image/png' });
+      const stored = await SuggestionRequest.findOne();
+      await as(adminToken, request(app).post(`/api/requests/${stored._id}/items/${stored.items[0]._id}/approve`));
+      assert.equal((await GalleryPhoto.findOne()).people[0].name, 'Cousin Jo');
+    });
+  });
+
+  describe('options and album names', () => {
+    it('reuses an existing album whatever the capitals', async () => {
+      await upload(adminToken, [{ album: 'Christmas 2019' }]);
+      const res = await upload(adminToken, [{ album: 'christmas  2019' }]);
+      assert.equal(res.body[0].album, 'Christmas 2019');
+    });
+
+    it('lists existing albums, tags and outside names; hidden tags for admins only and only what can be seen', async () => {
+      await upload(adminToken, [
+        { album: 'Trip', tags: ['sea'], people: [{ name: 'Bob' }] },
+        { album: 'Secret', tags: ['hush'], hiddenTags: ['mbala', 'timeline'] }
+      ]);
+      const member = (await as(memberToken, request(app).get('/api/gallery/options'))).body;
+      assert.deepEqual(member.albums, ['Trip']);
+      assert.deepEqual(member.tags, ['sea']);
+      assert.deepEqual(member.names, ['Bob']);
+      assert.equal(member.hiddenTags, undefined);
+      const adm = (await as(adminToken, request(app).get('/api/gallery/options'))).body;
+      assert.deepEqual(adm.albums, ['Secret', 'Trip']);
+      assert.deepEqual(adm.hiddenTags, ['mbala', 'timeline']);
+    });
+  });
+
+  describe('gallery access of an account', () => {
+    it('lets an admin set it, nobody else', async () => {
+      const maria = await User.findOne({ username: 'maria' });
+      const url = `/api/auth/users/${maria._id}/gallery`;
+      const res = await as(adminToken, request(app).put(url)).send({ galleryAll: false, galleryTags: ['#Mbala', 'mbala', 'Kabila'] });
+      assert.equal(res.status, 200);
+      const stored = await User.findById(maria._id);
+      assert.deepEqual(stored.galleryTags, ['mbala', 'kabila']);
+      assert.equal((await as(memberToken, request(app).put(url)).send({ galleryAll: true, galleryTags: [] })).status, 403);
+      assert.equal((await as(adminToken, request(app).put(url)).send({ galleryAll: 'yes', galleryTags: [] })).status, 400);
+      assert.equal((await as(adminToken, request(app).put(url)).send({ galleryAll: true, galleryTags: 'x' })).status, 400);
+    });
   });
 });

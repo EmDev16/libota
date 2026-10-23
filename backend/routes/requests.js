@@ -10,7 +10,8 @@ const { auth, adminAuth } = require('../middleware/auth');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
 const { logEvent, personSnapshot } = require('../utils/audit');
 const GalleryPhoto = require('../models/GalleryPhoto');
-const { cleanMeta, Invalid: InvalidMeta, GALLERY_SIZE, photoName } = require('./gallery');
+const { cleanDetails, Invalid: InvalidMeta, GALLERY_SIZE, photoName } = require('./gallery');
+const { InvalidTags } = require('../utils/tags');
 
 const router = express.Router();
 
@@ -82,7 +83,8 @@ const cleanItem = async (raw, hasPhoto) => {
 
   if (raw.type === 'photo') {
     if (!hasPhoto) throw new Invalid('Choose a photo');
-    const gallery = cleanMeta(raw.gallery);
+    // members can suggest tags and the people on the photo; hidden tags are the admin's to set
+    const gallery = await cleanDetails(raw.gallery);
     return { type: 'photo', note, gallery };
   }
 
@@ -149,7 +151,7 @@ router.post('/', memberOnly, uploadPhotos, async (req, res) => {
     res.status(201).json({ id: request._id, count: items.length });
   } catch (error) {
     for (const photo of saved) await removePhoto(photo);
-    if (error instanceof Invalid || error instanceof InvalidMeta) return res.status(400).json({ error: error.message });
+    if (error instanceof Invalid || error instanceof InvalidMeta || error instanceof InvalidTags) return res.status(400).json({ error: error.message });
     console.error('Sending suggestions failed:', error);
     res.status(500).json({ error: 'Something went wrong' });
   }
@@ -291,6 +293,7 @@ router.post('/:id/items/:itemId/approve', adminAuth, async (req, res) => {
         caption: g.caption || '',
         album: g.album || '',
         tags: g.tags || [],
+        people: g.people || [],
         takenYear: g.takenYear || null,
         takenDate: g.takenDate || null,
         createdBy: req.user._id
