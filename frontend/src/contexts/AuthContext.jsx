@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api';
+import { setLanguage } from '../i18n';
 
 const AuthContext = createContext(null);
 
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await authAPI.getMe();
         setUser(response.data);
+        setLanguage(response.data.language); // the language of the account
       } catch (error) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -30,6 +32,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', response.data.token);
     localStorage.setItem('user', JSON.stringify(response.data.user));
     setUser(response.data.user);
+    setLanguage(response.data.user.language);
     return response.data;
   };
 

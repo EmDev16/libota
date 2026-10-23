@@ -1621,3 +1621,14 @@ small { color: var(--muted); }
 }
 
 .wake-note { background: var(--copper-tint); border: 1px solid var(--copper-line); color: var(--ink); padding: 0.6rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 0.9rem; }
+
+/* Language picker in the navbar */
+.lang-select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9rem;
+}
