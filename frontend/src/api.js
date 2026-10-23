@@ -79,4 +79,15 @@ export const auditAPI = {
   restore: (id) => api.post(`/audit/${id}/restore`)
 };
 
+export const requestAPI = {
+  send: (formData) => api.post('/requests', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  mine: () => api.get('/requests/mine'),
+  count: () => api.get('/requests/count'),
+  list: (status) => api.get('/requests', { params: { status } }),
+  approve: (id, itemId) => api.post(`/requests/${id}/items/${itemId}/approve`),
+  reject: (id, itemId, reason) => api.post(`/requests/${id}/items/${itemId}/reject`, { reason })
+};
+
 export default api;

@@ -12,9 +12,12 @@ import AdminPanel from './pages/AdminPanel';
 import Account from './pages/Account';
 import Timeline from './pages/Timeline';
 import ActivityLog from './pages/ActivityLog';
+import SuggestionForm from './pages/SuggestionForm';
+import MyRequests from './pages/MyRequests';
+import Requests from './pages/Requests';
 import Navbar from './components/Navbar';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, memberOnly = false }) => {
   const { t } = useTranslation();
   const { user, loading, isAdmin } = useAuth();
 
@@ -27,6 +30,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (adminOnly && !isAdmin) {
+    return <Navigate to="/dashboard" />;
+  }
+
+  // Admins change people directly, so suggestions are for members only
+  if (memberOnly && isAdmin) {
     return <Navigate to="/dashboard" />;
   }
 
@@ -120,6 +128,30 @@ const AppContent = () => {
               element={
                 <ProtectedRoute adminOnly>
                   <ActivityLog />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/suggest"
+              element={
+                <ProtectedRoute memberOnly>
+                  <SuggestionForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-requests"
+              element={
+                <ProtectedRoute memberOnly>
+                  <MyRequests />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/requests"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Requests />
                 </ProtectedRoute>
               }
             />

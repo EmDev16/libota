@@ -1694,3 +1694,17 @@ small { color: var(--muted); }
 .log-restore { margin-top: 0.6rem; width: auto; padding: 0.45rem 1rem; }
 .log-pager { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 1.25rem 0; flex-wrap: wrap; color: var(--muted); }
 .log-pager .btn-secondary { width: auto; padding: 0.5rem 1rem; }
+
+/* ---------- Suggestions ---------- */
+.nav-badge { display: inline-block; min-width: 1.3rem; margin-left: 0.4rem; padding: 0 0.35rem; border-radius: 999px; background: var(--copper); color: #fff; font-size: 0.75rem; line-height: 1.3rem; text-align: center; }
+.suggestion-item { border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; margin: 0 0 1rem; background: var(--soft); }
+.suggestion-item legend { padding: 0 0.5rem; font-weight: 600; color: var(--copper-dark); }
+.suggest-add { width: 100%; margin-bottom: 1.25rem; }
+.request-item { margin-top: 0.6rem; overflow-wrap: anywhere; }
+.request-fields { display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 0.75rem; margin: 0.4rem 0 0; font-size: 0.9rem; }
+.request-fields dt { color: var(--muted); }
+.request-fields dd { margin: 0; min-width: 0; }
+.request-photo { display: block; max-width: 140px; max-height: 140px; margin-top: 0.5rem; border-radius: var(--radius); border: 1px solid var(--line); object-fit: cover; }
+.request-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.6rem 0 0.4rem; }
+.request-actions button { width: auto; padding: 0.45rem 1rem; }
+.request-status { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: center; margin: 0.5rem 0 0.4rem; font-size: 0.85rem; color: var(--muted); }

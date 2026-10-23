@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { authAPI, exportAPI } from '../api';
+import { authAPI, exportAPI, requestAPI } from '../api';
 import { LANGUAGES } from '../i18n';
 
 // Accepts a plain array of people, or an object like { people: [...] }
@@ -18,6 +18,7 @@ const extractPeople = (parsed) => {
 const AdminPanel = () => {
   const { t } = useTranslation();
   const [users, setUsers] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -36,6 +37,7 @@ const AdminPanel = () => {
 
   useEffect(() => {
     loadUsers();
+    requestAPI.count().then((res) => setPendingRequests(res.data.pending)).catch(() => {});
   }, []);
 
   const loadUsers = async () => {
@@ -320,6 +322,14 @@ const AdminPanel = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="admin-section">
+        <h2>{t('requestsTitle')}</h2>
+        <p>{t('requestsCount', { n: pendingRequests, defaultValue: '{{n}} waiting' })}</p>
+        <Link to="/admin/requests" className="btn-primary log-link">
+          {t('requestsOpen')}
+        </Link>
       </div>
 
       <div className="admin-section">

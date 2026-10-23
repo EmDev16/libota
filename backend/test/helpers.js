@@ -19,6 +19,7 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const User = require('../models/User');
 const Person = require('../models/Person');
 const AuditLog = require('../models/AuditLog');
+const SuggestionRequest = require('../models/SuggestionRequest');
 
 let mongod;
 
@@ -34,7 +35,7 @@ async function stopDb() {
 }
 
 async function clearDb() {
-  await Promise.all([User.deleteMany({}), Person.deleteMany({}), AuditLog.deleteMany({})]);
+  await Promise.all([User.deleteMany({}), Person.deleteMany({}), AuditLog.deleteMany({}), SuggestionRequest.deleteMany({})]);
   for (const name of fs.readdirSync(uploadsDir)) fs.unlinkSync(path.join(uploadsDir, name));
 }
 

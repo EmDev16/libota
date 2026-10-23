@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import SearchBox from './SearchBox';
 import { LANGUAGES, setLanguage } from '../i18n';
+import { requestAPI } from '../api';
 
 const Navbar = () => {
   const { t, i18n } = useTranslation();
@@ -11,6 +12,13 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false); // phone menu
+  const [pending, setPending] = useState(0); // suggestions waiting for an admin
+
+  // Admins see how many suggestions are waiting (looked up again whenever they change page)
+  useEffect(() => {
+    if (!isAdmin) return;
+    requestAPI.count().then((res) => setPending(res.data.pending)).catch(() => {});
+  }, [isAdmin, location.pathname]);
 
   // The menu closes by itself after choosing a page
   useEffect(() => {
@@ -43,7 +51,13 @@ const Navbar = () => {
         <Link to="/people">{t('navPeople')}</Link>
         <Link to="/timeline">{t('navTimeline')}</Link>
         <Link to="/relationship">{t('navRelationship')}</Link>
-        {isAdmin && <Link to="/admin">{t('navAdmin')}</Link>}
+        {!isAdmin && user && <Link to="/suggest">{t('navSuggest')}</Link>}
+        {isAdmin && (
+          <Link to="/admin">
+            {t('navAdmin')}
+            {pending > 0 && <span className="nav-badge">{pending}</span>}
+          </Link>
+        )}
       </div>
       <div className="nav-user">
         <select

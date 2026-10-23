@@ -8,6 +8,7 @@ const personRoutes = require('./routes/person');
 const treeRoutes = require('./routes/tree');
 const exportRoutes = require('./routes/export');
 const auditRoutes = require('./routes/audit');
+const requestRoutes = require('./routes/requests');
 const { getUploadDir } = require('./utils/photoStorage');
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/api/person', personRoutes);
 app.use('/api/tree', treeRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/requests', requestRoutes);
 
 // Health check (also used by the hosting platform to see that the server is alive)
 app.get('/api/health', (req, res) => {

@@ -15,6 +15,9 @@ const ACTIONS = {
   'auth.delete-user': 'logAccountDeleted',
   'data.import': 'logImport',
   'data.export': 'logExport',
+  'request.create': 'logRequestSent',
+  'request.approve': 'logRequestApproved',
+  'request.reject': 'logRequestRejected',
   'log.restore': 'logRestoreAction'
 };
 
