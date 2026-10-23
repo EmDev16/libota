@@ -1,7 +1,6 @@
 // Nederlands. One key per line; the test in test/i18n.test.js keeps all four languages in step.
 export default {
   logTitle: 'Activiteitenlogboek',
-  logIntro: 'Wie deed wat en wanneer. 12 maanden bewaard. Wijzigingen aan personen kun je hier ongedaan maken.',
   logOpen: 'Logboek openen',
   logWhen: 'Wanneer',
   logWho: 'Wie',

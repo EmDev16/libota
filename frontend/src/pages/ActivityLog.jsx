@@ -88,9 +88,7 @@ const ActivityLog = () => {
 
   return (
     <div className="activity-log">
-      <p>
-        <Link to="/admin">← {t('adminPanel')}</Link>
-      </p>
+      <Link to="/admin" className="log-back">← {t('adminPanel')}</Link>
       <h1>{t('logTitle')}</h1>
 
       <div className="log-filters">

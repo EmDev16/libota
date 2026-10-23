@@ -324,7 +324,6 @@ const AdminPanel = () => {
 
       <div className="admin-section">
         <h2>{t('logTitle')}</h2>
-        <p>{t('logIntro')}</p>
         <Link to="/admin/log" className="btn-primary log-link">
           {t('logOpen')}
         </Link>

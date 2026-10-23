@@ -3,7 +3,6 @@
 // Words kept from French (Génération, Statistiques, Tableau de bord ...) are common in Congolese Lingala.
 export default {
   logTitle: 'Lisolo ya misala',
-  logIntro: 'Nani asali nini, mpe ntango nini. Ebombami sanza 12. Okoki kozongisa bobongoli ya bato awa.',
   logOpen: 'Fungola lisolo',
   logWhen: 'Ntango',
   logWho: 'Nani',

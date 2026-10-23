@@ -1,7 +1,6 @@
 // English. One key per line; the test in test/i18n.test.js keeps all four languages in step.
 export default {
   logTitle: 'Activity log',
-  logIntro: 'Who did what, and when. Kept for 12 months. Changes to people can be undone here.',
   logOpen: 'Open the log',
   logWhen: 'When',
   logWho: 'Who',
