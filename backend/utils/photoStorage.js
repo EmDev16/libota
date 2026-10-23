@@ -43,14 +43,15 @@ const saveLocal = async (file) => {
   return `/uploads/${name}`;
 };
 
-const saveCloudinary = (file) =>
+const saveCloudinary = (file, maxSize = 1000) =>
   new Promise((resolve, reject) => {
     const stream = cloudinary().uploader.upload_stream(
       {
         folder: 'libota',
         resource_type: 'image',
         // Keep the stored picture small: nobody needs more than this on screen or in a PDF
-        transformation: [{ width: 1000, height: 1000, crop: 'limit' }, { quality: 'auto' }]
+        // (gallery photos are allowed to be larger, so they stay sharp when opened full screen)
+        transformation: [{ width: maxSize, height: maxSize, crop: 'limit' }, { quality: 'auto' }]
       },
       (error, result) => (error ? reject(error) : resolve(result.secure_url))
     );
@@ -58,7 +59,9 @@ const saveCloudinary = (file) =>
   });
 
 // file: a multer file held in memory ({ buffer, mimetype }). Returns what to store in person.photo.
-const savePhoto = (file) => (useCloudinary() ? saveCloudinary(file) : saveLocal(file));
+// options.maxSize: longest side in pixels (default 1000; only applied on Cloudinary).
+const savePhoto = (file, options = {}) =>
+  useCloudinary() ? saveCloudinary(file, options.maxSize) : saveLocal(file);
 
 // Best effort: a photo that cannot be removed is logged, it never makes a request fail.
 const removePhoto = async (photo) => {
