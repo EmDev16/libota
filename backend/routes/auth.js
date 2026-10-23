@@ -10,6 +10,7 @@ const {
 } = require('../middleware/rateLimit');
 const { getJwtSecret } = require('../utils/config');
 const { passwordProblem } = require('../utils/password');
+const { logEvent } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -67,9 +68,11 @@ router.post('/register', adminAuth, async (req, res) => {
     });
 
     await user.save();
+    await logEvent(req, { action: 'auth.register', targetType: 'user', targetId: user._id, targetName: user.username, message: `role: ${user.role}` });
 
     res.status(201).json({ user: publicUser(user) });
   } catch (error) {
+    await logEvent(req, { action: 'auth.register', status: 'fail', targetType: 'user', message: 'Server error' });
     serverError(res, error);
   }
 });
@@ -80,6 +83,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const { username, password, language } = req.body;
 
     if (!isText(username) || !isText(password)) {
+      await logEvent(req, { action: 'auth.login', status: 'fail', message: 'Invalid request' });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -90,6 +94,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     if (!user || !isMatch) {
       recordLoginFailure(req, username);
+      await logEvent(req, { action: 'auth.login', status: 'fail', username, message: user ? 'Wrong password' : 'Unknown username' });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -100,6 +105,8 @@ router.post('/login', loginLimiter, async (req, res) => {
       user.language = language;
       await user.save();
     }
+
+    await logEvent(req, { action: 'auth.login', actor: user, targetType: 'user', targetId: user._id, targetName: user.username });
 
     res.json({ token: signToken(user), user: publicUser(user) });
   } catch (error) {
@@ -130,6 +137,7 @@ router.put('/password', adminAuth, async (req, res) => {
 
     const user = await User.findById(req.user._id);
     if (!user || !(await user.comparePassword(currentPassword))) {
+      await logEvent(req, { action: 'auth.password', status: 'fail', targetType: 'user', targetId: req.user._id, targetName: req.user.username, message: 'Wrong current password' });
       // 400 and not 401: the browser logs you out on a 401, and you are still logged in here
       return res.status(400).json({ error: 'Current password is not correct' });
     }
@@ -145,6 +153,8 @@ router.put('/password', adminAuth, async (req, res) => {
     user.password = newPassword;
     user.passwordChangedAt = new Date();
     await user.save();
+
+    await logEvent(req, { action: 'auth.password', targetType: 'user', targetId: user._id, targetName: user.username });
 
     res.json({ message: 'Password changed', token: signToken(user) });
   } catch (error) {
@@ -182,6 +192,8 @@ router.put('/users/:id/password', adminAuth, async (req, res) => {
     user.passwordChangedAt = new Date();
     await user.save();
 
+    await logEvent(req, { action: 'auth.reset-password', targetType: 'user', targetId: user._id, targetName: user.username });
+
     res.json({ message: 'Password reset' });
   } catch (error) {
     // An id that is not an ObjectId fails here as well
@@ -204,6 +216,13 @@ router.put('/users/:id/stats', adminAuth, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    await logEvent(req, {
+      action: 'auth.stats',
+      targetType: 'user',
+      targetId: user._id,
+      targetName: user.username,
+      message: req.body.showStats ? 'statistics on' : 'statistics off'
+    });
     res.json(user);
   } catch (error) {
     if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });
@@ -221,10 +240,12 @@ router.delete('/users/:id', adminAuth, async (req, res) => {
 
     // Deleting yourself is how a family ends up without any admin
     if (String(user._id) === String(req.user._id)) {
+      await logEvent(req, { action: 'auth.delete-user', status: 'fail', targetType: 'user', targetId: user._id, targetName: user.username, message: 'Own account' });
       return res.status(400).json({ error: 'You cannot delete your own account' });
     }
 
     await User.findByIdAndDelete(req.params.id);
+    await logEvent(req, { action: 'auth.delete-user', targetType: 'user', targetId: user._id, targetName: user.username, message: `role: ${user.role}` });
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     if (error.name === 'CastError') return res.status(404).json({ error: 'User not found' });

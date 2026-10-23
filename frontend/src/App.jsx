@@ -11,6 +11,7 @@ import RelationshipFinder from './pages/RelationshipFinder';
 import AdminPanel from './pages/AdminPanel';
 import Account from './pages/Account';
 import Timeline from './pages/Timeline';
+import ActivityLog from './pages/ActivityLog';
 import Navbar from './components/Navbar';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -110,6 +111,14 @@ const AppContent = () => {
               element={
                 <ProtectedRoute adminOnly>
                   <AdminPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/log"
+              element={
+                <ProtectedRoute adminOnly>
+                  <ActivityLog />
                 </ProtectedRoute>
               }
             />

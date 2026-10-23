@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authAPI, exportAPI } from '../api';
 
@@ -317,6 +318,14 @@ const AdminPanel = () => {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="admin-section">
+        <h2>{t('logTitle')}</h2>
+        <p>{t('logIntro')}</p>
+        <Link to="/admin/log" className="btn-primary log-link">
+          {t('logOpen')}
+        </Link>
       </div>
 
       <div className="admin-section">

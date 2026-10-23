@@ -5,6 +5,7 @@ const Person = require('../models/Person');
 const { auth, adminAuth } = require('../middleware/auth');
 const { computeStats } = require('../utils/stats');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
+const { logEvent, personSnapshot } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -180,6 +181,14 @@ router.post('/', adminAuth, uploadPhoto, async (req, res) => {
       await syncFormerSpouses(person._id, person.spouses, person.formerSpouses);
     }
 
+    await logEvent(req, {
+      action: 'person.create',
+      targetType: 'person',
+      targetId: person._id,
+      targetName: `${person.firstName} ${person.lastName}`,
+      after: await personSnapshot(await Person.findById(person._id))
+    });
+
     const savedPerson = await Person.findById(person._id)
       .populate('parents', 'firstName lastName')
       .populate('spouses', 'firstName lastName')
@@ -191,6 +200,13 @@ router.post('/', adminAuth, uploadPhoto, async (req, res) => {
     // Do not leave an uploaded photo behind for a person that was never saved
     if (newPhoto && !saved) await removePhoto(newPhoto);
 
+    await logEvent(req, {
+      action: 'person.create',
+      status: 'fail',
+      targetType: 'person',
+      targetName: `${req.body.firstName || ''} ${req.body.lastName || ''}`.trim(),
+      message: error.name === 'ValidationError' ? 'Invalid data' : 'Server error'
+    });
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
     }
@@ -208,8 +224,10 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
     const person = await Person.findById(req.params.id);
 
     if (!person) {
+      await logEvent(req, { action: 'person.update', status: 'fail', targetType: 'person', targetId: req.params.id, message: 'Person not found' });
       return res.status(404).json({ error: 'Person not found' });
     }
+    const beforeSnapshot = await personSnapshot(person);
 
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;
 
@@ -273,6 +291,15 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
       await releasePhoto(oldPhoto, person._id);
     }
 
+    await logEvent(req, {
+      action: 'person.update',
+      targetType: 'person',
+      targetId: person._id,
+      targetName: `${person.firstName} ${person.lastName}`,
+      before: beforeSnapshot,
+      after: await personSnapshot(await Person.findById(person._id))
+    });
+
     const updatedPerson = await Person.findById(person._id)
       .populate('parents', 'firstName lastName')
       .populate('spouses', 'firstName lastName')
@@ -283,6 +310,13 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
   } catch (error) {
     if (newPhoto && !saved) await removePhoto(newPhoto);
 
+    await logEvent(req, {
+      action: 'person.update',
+      status: 'fail',
+      targetType: 'person',
+      targetId: req.params.id,
+      message: error.name === 'ValidationError' ? 'Invalid data' : 'Server error'
+    });
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
     }
@@ -297,8 +331,10 @@ router.delete('/:id', adminAuth, async (req, res) => {
     const person = await Person.findById(req.params.id);
 
     if (!person) {
+      await logEvent(req, { action: 'person.delete', status: 'fail', targetType: 'person', targetId: req.params.id, message: 'Person not found' });
       return res.status(404).json({ error: 'Person not found' });
     }
+    const beforeSnapshot = await personSnapshot(person);
 
     // Remove this person from parents' children arrays
     if (person.parents && person.parents.length > 0) {
@@ -327,8 +363,17 @@ router.delete('/:id', adminAuth, async (req, res) => {
     await Person.findByIdAndDelete(req.params.id);
     await releasePhoto(person.photo, person._id);
 
+    await logEvent(req, {
+      action: 'person.delete',
+      targetType: 'person',
+      targetId: person._id,
+      targetName: `${person.firstName} ${person.lastName}`,
+      before: beforeSnapshot
+    });
+
     res.json({ message: 'Person deleted successfully' });
   } catch (error) {
+    await logEvent(req, { action: 'person.delete', status: 'fail', targetType: 'person', targetId: req.params.id, message: 'Server error' });
     console.error('Delete person failed:', error);
     res.status(500).json({ error: error.message });
   }

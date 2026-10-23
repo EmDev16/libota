@@ -74,4 +74,9 @@ export const exportAPI = {
      importJSON: (data, mode = 'add') => api.post('/export/json', { data, mode })
 };
 
+export const auditAPI = {
+  list: (params) => api.get('/audit', { params }),
+  restore: (id) => api.post(`/audit/${id}/restore`)
+};
+
 export default api;

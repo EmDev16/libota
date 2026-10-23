@@ -1620,4 +1620,38 @@ small { color: var(--muted); }
   .search-results { position: static; margin-top: 4px; max-height: 50vh; }
 }
 
-.wake-note { background: var(--copper-tint); border: 1px solid var(--copper-line); color: var(--ink); padding: 0.6rem 0.75rem; border-radius: var(--radius); margin-bottom: 1rem; font-size: 0.9rem; }
+/* Long words never push things out of their card */
+.dashboard-card h2, .dashboard-card p, .stat-label, .insight-card h2, .person-details h3, .person-details p,
+.user-info, .timeline-name, .path-card, .checkbox-label {
+  overflow-wrap: anywhere;
+}
+.btn-primary, .btn-secondary, .btn-danger, .btn-logout, .chip { overflow-wrap: anywhere; }
+.list-header { flex-wrap: wrap; gap: 0.75rem; }
+.list-header .btn-primary { width: auto; }
+.person-card-item { flex-wrap: wrap; }
+.person-card-item .person-details { flex: 1 1 140px; min-width: 0; }
+.person-actions { flex-wrap: wrap; margin-left: auto; }
+.facts dd { min-width: 0; overflow-wrap: anywhere; }
+.spouse-order > div { flex-wrap: wrap; }
+.nav-links { flex-wrap: wrap; row-gap: 0.25rem; }
+
+/* ---------- Activity log ---------- */
+.activity-log { max-width: 900px; margin: 0 auto; }
+.log-link { display: inline-block; width: auto; text-decoration: none; }
+.log-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.log-filters select, .log-filters input { flex: 1 1 180px; min-width: 0; }
+.log-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.log-entry { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--copper); border-radius: var(--radius); padding: 0.7rem 0.9rem; overflow-wrap: anywhere; }
+.log-entry.log-fail { border-left-color: #b3261e; }
+.log-main { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
+.log-when { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; }
+.log-status { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.05rem 0.4rem; border-radius: var(--radius); }
+.log-status-success { background: var(--copper-tint); color: var(--copper-dark); }
+.log-status-fail { background: #f6dcda; color: #8c1d18; }
+.log-who { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
+.log-changes { list-style: none; margin: 0.4rem 0 0; padding: 0; font-size: 0.9rem; }
+.log-field { font-weight: 600; }
+.log-from { text-decoration: line-through; color: var(--muted); }
+.log-restored { margin-top: 0.4rem; font-size: 0.85rem; color: var(--copper-dark); }
+.log-restore { margin-top: 0.5rem; width: auto; }
+.log-pager { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 1rem 0; flex-wrap: wrap; }

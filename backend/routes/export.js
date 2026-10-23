@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Person = require('../models/Person');
 const User = require('../models/User');
 const { auth, adminAuth } = require('../middleware/auth');
+const { logEvent } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -46,6 +47,7 @@ router.get('/json', adminAuth, async (req, res) => {
       }))
     };
 
+    await logEvent(req, { action: 'data.export', targetType: 'data', message: `${people.length} people` });
     res.json(exportData);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -194,6 +196,12 @@ router.post('/json', adminAuth, async (req, res) => {
       await Person.deleteMany({ _id: { $nin: newIds } });
     }
 
+    await logEvent(req, {
+      action: 'data.import',
+      targetType: 'data',
+      message: `${mode}: ${inserted.length} people (this cannot be restored from the log)`
+    });
+
     res.json({
       message: 'Data imported successfully',
       imported: inserted.length,
@@ -204,6 +212,7 @@ router.post('/json', adminAuth, async (req, res) => {
   } catch (error) {
     // A person that does not fit the Person model (for example no last name) is a problem
     // with the file, not with the server. Nothing was inserted in that case.
+    await logEvent(req, { action: 'data.import', status: 'fail', targetType: 'data', message: error.name === 'ValidationError' ? 'Invalid file' : 'Server error' });
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: error.message });
     }
