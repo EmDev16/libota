@@ -14,7 +14,7 @@ const { cleanTag, cleanTagList, InvalidTags } = require('../utils/tags');
 const router = express.Router();
 
 const MAX_FILES = 20; // per upload
-const GALLERY_SIZE = 2000; // longest side of a stored photo, in pixels
+const GALLERY_SIZE = 2560; // longest side of a stored photo, in pixels
 const TIMELINE_TAG = 'timeline'; // the hidden tag that puts a photo on the timeline page
 
 const upload = multer({
