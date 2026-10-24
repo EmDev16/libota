@@ -14,7 +14,8 @@ import {
   MODERN_SIZES,
   calculateGenerationalLevels,
   findUnlinkedPeople,
-  getAncestorsAndDescendants
+  getAncestorsAndDescendants,
+  getDescendantsWithPartners
 } from './treeLayout';
 
 const M = MODERN_SIZES;
@@ -23,7 +24,7 @@ const UNIT_GAP = 60; // free space between two rows-of-partners on one generatio
 const PASSES = 24;
 const ORDER_SWEEPS = 12;
 // Line colours of the families (not the red and blue of the cards, which mean female and male)
-const FAMILY_COLORS = ['#8e44ad', '#16a085', '#e67e22', '#27ae60', '#d6336c', '#2c82c9', '#a0522d', '#7f8c00'];
+const FAMILY_COLORS = ['#B87333', '#0A2342', '#6f8a4f', '#8c4a3b', '#4f6d7a', '#a68a64', '#6b4f7a', '#3f7d6b'];
 
 // The horizontal line of a family's children: where it starts under the parents' row, how far
 // apart the heights of overlapping families are, and how close it may come to the children
@@ -676,10 +677,15 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
  * People without any link are not part of the tree itself; they get their own row at the bottom
  * (only when the whole tree is shown).
  */
-export function calculateGraphLayoutFor(people, rootPersonId = '', unlinkedLabel = 'Unlinked Members') {
+export function calculateGraphLayoutFor(people, rootPersonId = '', unlinkedLabel = 'Unlinked Members', options = {}) {
   const unlinked = findUnlinkedPeople(people);
   const unlinkedIds = new Set(unlinked.map(p => p._id));
   const linked = people.filter(p => !unlinkedIds.has(p._id));
+
+  // Only the chosen person and the people who descend from them (with their partners)
+  if (rootPersonId && options.descendantsOnly) {
+    return calculateGraphLayout(getDescendantsWithPartners(people, rootPersonId), [], unlinkedLabel);
+  }
 
   if (rootPersonId) {
     const levels = calculateGenerationalLevels(linked);

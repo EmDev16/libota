@@ -3,51 +3,22 @@ import { useTranslation } from 'react-i18next';
 import { findUnlinkedPeople } from '../utils/treeLayout';
 import { getPeopleForExport, generateFamilyPdf } from '../utils/pdfExport';
 
-const UP_LABELS = [
-  'The person themself',
-  'Parents',
-  'Grandparents',
-  'Great-grandparents',
-  'Great-great-grandparents',
-  '5 generations up',
-  '6 generations up'
-];
-
-const DOWN_LABELS = [
-  "Stop at the person's own generation",
-  'Children',
-  'Grandchildren',
-  'Great-grandchildren',
-  '4 generations down',
-  '5 generations down',
-  '6 generations down'
-];
+const UP_KEYS = ['pdfUp0', 'pdfUp1', 'pdfUp2', 'pdfUp3', 'pdfUp4', 'pdfUp5', 'pdfUp6'];
+const DOWN_KEYS = ['pdfDown0', 'pdfDown1', 'pdfDown2', 'pdfDown3', 'pdfDown4', 'pdfDown5', 'pdfDown6'];
 
 // Quick settings for the most common cases
 const PRESETS = [
-  { label: 'Descendants', up: 0, down: 'all' },
-  { label: 'Siblings', up: 1, down: '0' },
-  { label: 'First cousins', up: 2, down: '0' },
-  { label: 'Second cousins', up: 3, down: '0' },
-  { label: 'Great-grandparents and all descendants', up: 3, down: 'all' }
+  { key: 'pdfPresetDescendants', up: 0, down: 'all' },
+  { key: 'pdfPresetSiblings', up: 1, down: '0' },
+  { key: 'pdfPresetCousins', up: 2, down: '0' },
+  { key: 'pdfPresetSecondCousins', up: 3, down: '0' },
+  { key: 'pdfPresetGreatGrandparents', up: 3, down: 'all' }
 ];
 
 const PAGE_MODES = [
-  {
-    value: 'fit',
-    title: 'One page (poster)',
-    text: 'The whole tree on a single large page. Best on screen or printed on a plotter.'
-  },
-  {
-    value: 'tiles',
-    title: 'Split across several pages',
-    text: 'The tree is cut into normal paper pages you can print and tape together.'
-  },
-  {
-    value: 'branches',
-    title: 'One page per branch',
-    text: 'An overview page, then one page for every branch of the family.'
-  }
+  { value: 'fit', title: 'pdfModeFit', text: 'pdfModeFitText' },
+  { value: 'tiles', title: 'pdfModeTiles', text: 'pdfModeTilesText' },
+  { value: 'branches', title: 'pdfModeBranches', text: 'pdfModeBranchesText' }
 ];
 
 const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
@@ -135,7 +106,7 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
               <div className="pdf-presets">
                 {PRESETS.map((preset) => (
                   <button
-                    key={preset.label}
+                    key={preset.key}
                     type="button"
                     className="btn-secondary"
                     onClick={() => {
@@ -143,7 +114,7 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
                       setDown(preset.down);
                     }}
                   >
-                    {preset.label}
+                    {t(preset.key)}
                   </button>
                 ))}
               </div>
@@ -166,8 +137,8 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
                 <div>
                   <label>{t('pdfStartAt', 'Start at')}</label>
                   <select value={up} onChange={(e) => setUp(Number(e.target.value))}>
-                    {UP_LABELS.map((label, i) => (
-                      <option key={i} value={i}>{label}</option>
+                    {UP_KEYS.map((key, i) => (
+                      <option key={i} value={i}>{t(key)}</option>
                     ))}
                   </select>
                 </div>
@@ -175,8 +146,8 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
                   <label>{t('pdfShowDown', 'Show down to')}</label>
                   <select value={down} onChange={(e) => setDown(e.target.value)}>
                     <option value="all">{t('pdfAllBelow', 'All generations below')}</option>
-                    {DOWN_LABELS.map((label, i) => (
-                      <option key={i} value={String(i)}>{label}</option>
+                    {DOWN_KEYS.map((key, i) => (
+                      <option key={i} value={String(i)}>{t(key)}</option>
                     ))}
                   </select>
                 </div>
@@ -204,8 +175,8 @@ const ExportPdfModal = ({ people, initialRootId = '', onClose }) => {
                 onChange={() => setPageMode(mode.value)}
               />
               <span>
-                {mode.title}
-                <small>{mode.text}</small>
+                {t(mode.title)}
+                <small>{t(mode.text)}</small>
               </span>
             </label>
           ))}

@@ -791,6 +791,30 @@ export function getAncestorsAndDescendants(people, rootId, levels) {
 }
 
 /**
+ * One person, all their descendants (children, grandchildren, ...) and the partners of all of them.
+ * The parents of a partner are not included: that family is a different branch.
+ */
+export function getDescendantsWithPartners(people, rootId) {
+  const byId = new Map(people.map(p => [p._id, p]));
+  const included = new Set();
+  const queue = [rootId];
+  while (queue.length > 0) {
+    const id = queue.shift();
+    if (included.has(id) || !byId.has(id)) continue;
+    included.add(id);
+    const person = byId.get(id);
+    (person.children || []).forEach(childId => queue.push(childId));
+  }
+  const withPartners = new Set(included);
+  included.forEach(id => {
+    (byId.get(id).spouses || []).forEach(sid => {
+      if (byId.has(sid)) withPartners.add(sid);
+    });
+  });
+  return people.filter(p => withPartners.has(p._id));
+}
+
+/**
  * Identify unlinked people (no parents, children or spouses in the tree)
  */
 export function findUnlinkedPeople(people) {

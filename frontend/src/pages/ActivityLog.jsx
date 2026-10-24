@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { auditAPI } from '../api';
+import { useDialog } from '../components/DialogProvider';
 
 export const ACTIONS = {
   'person.create': 'logPersonAdded',
@@ -46,6 +47,7 @@ const formatWhen = (value) => {
 
 const ActivityLog = () => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
   const [page, setPage] = useState(1);
@@ -78,14 +80,14 @@ const ActivityLog = () => {
   }, [load]);
 
   const handleRestore = async (entry) => {
-    if (!window.confirm(t('logRestoreConfirm'))) return;
+    if (!(await dialog.confirm(t('logRestoreConfirm'), { okLabel: t('logRestore') }))) return;
     setBusyId(entry.id);
     try {
       const res = await auditAPI.restore(entry.id);
-      alert(res.data.note === 'photo' ? t('logPhotoNote') : t('logRestoreDone'));
+      await dialog.alert(res.data.note === 'photo' ? t('logPhotoNote') : t('logRestoreDone'));
       await load();
     } catch (error) {
-      alert(error.response?.data?.error || t('error'));
+      await dialog.alert(error.response?.data?.error || t('error'));
     } finally {
       setBusyId(null);
     }

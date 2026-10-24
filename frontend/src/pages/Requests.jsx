@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { requestAPI } from '../api';
 import SuggestionItem from '../components/SuggestionItem';
+import { useDialog } from '../components/DialogProvider';
 
 const pad = (n) => String(n).padStart(2, '0');
 const formatWhen = (value) => {
@@ -13,6 +14,7 @@ const STATUS = { pending: 'statusPending', approved: 'statusApproved', rejected:
 
 const Requests = () => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const navigate = useNavigate();
   const [requests, setRequests] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -41,7 +43,7 @@ const Requests = () => {
       if (item.type === 'newPerson' || item.type === 'me') navigate(`/people/${res.data.personId}/edit`);
       else await load();
     } catch (error) {
-      alert(error.response?.data?.error || t('error'));
+      await dialog.alert(error.response?.data?.error || t('error'));
       await load();
     } finally {
       setBusy(null);
@@ -49,14 +51,14 @@ const Requests = () => {
   };
 
   const reject = async (request, item) => {
-    const reason = window.prompt(t('requestRejectReason'));
+    const reason = await dialog.prompt(t('requestRejectReason'), { okLabel: t('requestReject') });
     if (reason === null) return;
     setBusy(item._id);
     try {
       await requestAPI.reject(request._id, item._id, reason);
       await load();
     } catch (error) {
-      alert(error.response?.data?.error || t('error'));
+      await dialog.alert(error.response?.data?.error || t('error'));
     } finally {
       setBusy(null);
     }

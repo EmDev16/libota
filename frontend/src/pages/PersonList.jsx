@@ -5,9 +5,11 @@ import { personAPI } from '../api';
 import { photoUrl } from '../utils/photo';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils/dates';
+import { useDialog } from '../components/DialogProvider';
 
 const PersonList = () => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,10 +33,10 @@ const PersonList = () => {
 
   const handleDelete = async (id) => {
     if (!isAdmin) {
-      alert(t('memberCannotDelete'));
+      await dialog.alert(t('memberCannotDelete'));
       return;
     }
-    if (window.confirm(t('confirmDelete'))) {
+    if (await dialog.confirm(t('confirmDelete'), { danger: true })) {
       try {
         await personAPI.delete(id);
         loadPeople();

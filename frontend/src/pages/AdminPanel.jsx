@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authAPI, exportAPI, requestAPI, galleryAPI } from '../api';
 import GalleryAccess from '../components/GalleryAccess';
+import { useDialog } from '../components/DialogProvider';
 import { LANGUAGES } from '../i18n';
 
 // Accepts a plain array of people, or an object like { people: [...] }
@@ -18,6 +19,7 @@ const extractPeople = (parsed) => {
 
 const AdminPanel = () => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const [users, setUsers] = useState([]);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,18 +77,18 @@ const AdminPanel = () => {
     } catch (error) {
       console.error('Error adding user:', error);
       // 400 messages are written for people ("Password must be at least 8 characters")
-      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
+      await dialog.alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm(t('confirmDelete'))) {
+    if (await dialog.confirm(t('confirmDelete'), { danger: true })) {
       try {
         await authAPI.deleteUser(id);
         loadUsers();
       } catch (error) {
         console.error('Error deleting user:', error);
-        alert(error.response?.status === 400 ? error.response.data.error : t('error'));
+        await dialog.alert(error.response?.status === 400 ? error.response.data.error : t('error'));
       }
     }
   };
@@ -97,7 +99,7 @@ const AdminPanel = () => {
       loadUsers();
     } catch (error) {
       console.error('Error changing statistics access:', error);
-      alert(t('error'));
+      await dialog.alert(t('error'));
     }
   };
 
@@ -108,21 +110,22 @@ const AdminPanel = () => {
       loadUsers();
     } catch (error) {
       console.error('Error changing gallery access:', error);
-      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
+      await dialog.alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
   const handleResetPassword = async (user) => {
-    const newPassword = window.prompt(
-      t('resetPasswordPrompt', { name: user.username })
-    );
+    const newPassword = await dialog.prompt(t('resetPasswordPrompt', { name: user.username }), {
+      password: true,
+      okLabel: t('resetPassword', 'Reset password')
+    });
     if (!newPassword) return;
     try {
       await authAPI.resetUserPassword(user._id, newPassword);
-      alert(t('passwordResetDone', { name: user.username }));
+      await dialog.alert(t('passwordResetDone', { name: user.username }));
     } catch (error) {
       console.error('Error resetting password:', error);
-      alert(error.response?.status === 400 ? error.response.data.error : t('error'));
+      await dialog.alert(error.response?.status === 400 ? error.response.data.error : t('error'));
     }
   };
 
@@ -176,24 +179,26 @@ const AdminPanel = () => {
     const n = people.length;
     if (importMode === 'replace') {
       const ok =
-        window.confirm(
+        (await dialog.confirm(
           t('importConfirmReplace', {
             n,
             defaultValue:
               'This will DELETE all existing people and replace them with the {{n}} people in this file. Continue?'
-          })
-        ) &&
-        window.confirm(
-          t('importConfirmReplaceAgain', 'Are you sure? Export a backup first if you want to keep the current data.')
-        );
+          }),
+          { danger: true, okLabel: t('importModeReplace') }
+        )) &&
+        (await dialog.confirm(
+          t('importConfirmReplaceAgain', 'Are you sure? Export a backup first if you want to keep the current data.'),
+          { danger: true, okLabel: t('importModeReplace') }
+        ));
       if (!ok) return;
     } else if (
-      !window.confirm(
+      !(await dialog.confirm(
         t('importConfirmAdd', {
           n,
           defaultValue: 'Add {{n}} people to the existing data?'
         })
-      )
+      ))
     ) {
       return;
     }

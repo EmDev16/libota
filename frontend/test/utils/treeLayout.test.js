@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getDescendantsWithPartners,
   normalizeRelationships,
   calculateGenerationalLevels,
   calculateTraditionalLayout,
@@ -552,5 +553,22 @@ describe('ended relationships (formerSpouses)', () => {
 
     expect(people.find((p) => p._id === 'jean').formerSpouses).toEqual(['carine']);
     expect(people.find((p) => p._id === 'carine').formerSpouses).toEqual(['jean']);
+  });
+});
+
+describe('getDescendantsWithPartners', () => {
+  const p = (id, extra = {}) => ({ _id: id, parents: [], children: [], spouses: [], ...extra });
+  const people = [
+    p('gp', { children: ['dad', 'uncle'], spouses: ['gm'] }),
+    p('gm', { spouses: ['gp'], children: ['dad', 'uncle'] }),
+    p('dad', { parents: ['gp', 'gm'], children: ['kid'], spouses: ['mom'] }),
+    p('mom', { parents: ['momdad'], spouses: ['dad'], children: ['kid'] }),
+    p('momdad', { children: ['mom'] }),
+    p('kid', { parents: ['dad', 'mom'] }),
+    p('uncle', { parents: ['gp', 'gm'] })
+  ];
+  it('takes the person, the descendants and the partners, not the partners\' parents or other branches', () => {
+    expect(getDescendantsWithPartners(people, 'dad').map((x) => x._id).sort()).toEqual(['dad', 'kid', 'mom']);
+    expect(getDescendantsWithPartners(people, 'gp').map((x) => x._id).sort()).toEqual(['dad', 'gm', 'gp', 'kid', 'mom', 'uncle'].sort());
   });
 });
