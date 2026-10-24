@@ -125,6 +125,9 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
     .filter((x) => x.birth && x.birth <= now)
     .sort((a, b) => a.birth - b.birth);
   const asAge = (x) => ({ id: idOf(x.p), name: fullName(x.p), age: yearsBetween(x.birth, now) });
+  // average age of the living family (people with a birth date)
+  const ages = livingWithBirth.map((x) => yearsBetween(x.birth, now));
+  const averageAge = ages.length ? Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10 : null;
   const oldestLiving = livingWithBirth.length ? asAge(livingWithBirth[0]) : null;
   const youngestLiving = livingWithBirth.length ? asAge(livingWithBirth[livingWithBirth.length - 1]) : null;
 
@@ -199,6 +202,8 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
     generationSizes,
     largestGeneration: largest,
     averageLifespan,
+    averageAge,
+    ageSample: ages.length,
     lifespanSample: lifespans.length,
     oldestLiving,
     youngestLiving,

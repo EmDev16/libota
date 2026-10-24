@@ -224,7 +224,15 @@ router.get('/relationship/:id1/:id2', auth, async (req, res) => {
     });
 
     // Deduce rich kinship details
-    const kinship = deduceKinship(person1, person2, steps);
+    // Siblings who share only one parent are half-siblings (the steps alone cannot show that)
+    const parentIds = (p) => (p.parents || []).map(String);
+    const sharedParents = parentIds(person1).filter((x) => parentIds(person2).includes(x));
+    const context = {
+      halfSiblings:
+        sharedParents.length === 1 && (parentIds(person1).length > 1 || parentIds(person2).length > 1)
+    };
+
+    const kinship = deduceKinship(person1, person2, steps, context);
 
     res.json({
       relationship: kinship.targetTitle,

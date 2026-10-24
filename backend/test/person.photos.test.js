@@ -162,4 +162,35 @@ describe('person photos', () => {
       assert.equal(res.body.toString(), 'served-bytes');
     });
   });
+
+  describe('removing a photo', () => {
+    it('takes the photo away and deletes the file when asked', async () => {
+      const created = await createWithPhoto({}, 'image-bytes');
+      const photo = created.body.photo;
+      assert.ok(fs.existsSync(fileOf(photo)));
+
+      const res = await asUser(request(app).put(`/api/person/${created.body._id}`)).field('removePhoto', 'true');
+      assert.equal(res.status, 200);
+      assert.ok(!res.body.photo);
+      assert.ok(!fs.existsSync(fileOf(photo)));
+      assert.ok(!(await Person.findById(created.body._id)).photo);
+    });
+
+    it('keeps the photo when nothing is said about it', async () => {
+      const created = await createWithPhoto({}, 'image-bytes');
+      const res = await asUser(request(app).put(`/api/person/${created.body._id}`)).field('firstName', 'Anne');
+      assert.equal(res.status, 200);
+      assert.equal(res.body.photo, created.body.photo);
+    });
+
+    it('a new photo wins over removePhoto', async () => {
+      const created = await createWithPhoto({}, 'old');
+      const res = await asUser(request(app).put(`/api/person/${created.body._id}`))
+        .field('removePhoto', 'true')
+        .attach('photo', Buffer.from('new'), PNG);
+      assert.equal(res.status, 200);
+      assert.ok(res.body.photo);
+      assert.notEqual(res.body.photo, created.body.photo);
+    });
+  });
 });

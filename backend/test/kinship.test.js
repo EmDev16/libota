@@ -195,4 +195,41 @@ const emily = { _id: '8', firstName: 'Emily', lastName: 'Smith', gender: 'female
   console.log('✓ Sister-in-law passed');
 }
 
+
+// --- Step-family, half-siblings and relatives by marriage ---
+{
+  const tags = (res) => `${res.relationshipKey}|${res.mutualKey}`;
+  const P = (to) => ({ type: 'parent', to });
+  const C = (to) => ({ type: 'child', to });
+  const S = (to) => ({ type: 'spouse', to });
+
+  // half-brother: same steps as a brother, but the context says only one parent is shared
+  assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), C('4')], { halfSiblings: true })), 'halfBrother|halfSiblings');
+  assert.strictEqual(tags(deduceKinship(ben, lisa, [P('1'), C('2')], { halfSiblings: true })), 'halfSister|halfSiblings');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), C('4')])), 'brother|brothers');
+
+  // step-parents, step-children, step-siblings
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), S('8')])), 'stepmother|stepFamily');
+  assert.strictEqual(tags(deduceKinship(ben, dan, [P('9'), S('1')])), 'stepfather|stepFamily');
+  assert.strictEqual(tags(deduceKinship(dan, ben, [S('2'), C('3')])), 'stepson|stepFamily');
+  assert.strictEqual(tags(deduceKinship(dan, lisa, [S('2'), C('3')])), 'stepdaughter|stepFamily');
+  assert.strictEqual(tags(deduceKinship(ben, lisa, [P('1'), S('9'), C('2')])), 'stepsister|stepFamily');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), S('9'), C('4')])), 'stepbrother|stepFamily');
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), S('8')])), 'stepGrandmother|stepFamily');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [S('9'), C('1'), C('4')])), 'stepGrandson|stepFamily');
+
+  // relatives by marriage
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), C('9'), S('8')])), 'auntInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), P('7'), C('9'), S('4')])), 'uncleInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), C('9'), C('10'), S('8')])), 'cousinInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, emily, [S('9'), P('1'), P('7'), C('2'), C('8')])), 'cousinInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [S('9'), P('1'), P('7')])), 'grandfatherInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), C('2'), C('3'), S('8')])), 'nieceInLaw|inLaws');
+  assert.strictEqual(tags(deduceKinship(ben, ned, [C('1'), C('2'), S('4')])), 'grandsonInLaw|inLaws');
+  // a line that goes through the same partnership twice stays a general "relative"
+  assert.strictEqual(tags(deduceKinship(ben, emily, [S('9'), P('1'), C('2'), S('8')])), 'relative|relatives');
+  assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), P('11'), C('7'), S('8')])), 'relativeInLaw|inLaws');
+  console.log('✓ Step-family, half-siblings and in-laws passed');
+}
+
 console.log('All 16 kinship unit tests passed successfully!');
