@@ -65,4 +65,11 @@ async function logEvent(req, entry) {
   }
 }
 
-module.exports = { logEvent, personSnapshot, personName };
+// True when two snapshots describe the same person data (the names of linked people do not count)
+function sameSnapshot(a, b) {
+  if (!a || !b) return false;
+  const strip = ({ linkNames, ...rest }) => rest; // eslint-disable-line no-unused-vars
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
+}
+
+module.exports = { logEvent, personSnapshot, personName, sameSnapshot };

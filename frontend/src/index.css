@@ -1834,3 +1834,83 @@ small { color: var(--muted); }
 
 .admin-bottom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-items: start; }
 @media (max-width: 800px) { .admin-bottom { grid-template-columns: 1fr; } }
+
+.admin-bottom-single { grid-template-columns: 1fr; }
+
+/* ===================================================================
+   Fixes batch: modal buttons, tree focus, dialogs, photo editing
+   =================================================================== */
+
+/* Buttons in the person modal keep their word in one piece and wrap as whole buttons */
+.modal-actions { flex-wrap: wrap; gap: 0.6rem; }
+.modal-actions .btn-primary,
+.modal-actions .btn-secondary {
+  width: auto;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+/* The person the tree was centred on */
+.pedigree-focus {
+  border-color: var(--copper) !important;
+  box-shadow: 0 0 0 3px var(--copper-line), 0 4px 14px rgba(184, 115, 51, 0.35);
+  animation: focus-pulse 1.2s ease-in-out 2;
+}
+@keyframes focus-pulse {
+  50% { box-shadow: 0 0 0 7px var(--copper-line), 0 4px 14px rgba(184, 115, 51, 0.2); }
+}
+
+/* Our own confirm / alert / prompt boxes (instead of "site says...") */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(10, 35, 66, 0.45);
+}
+.dialog-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 1.5rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--copper);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+.dialog-message { margin: 0 0 1rem; color: var(--ink); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.dialog-input {
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+  background: var(--card);
+  color: var(--ink);
+}
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.6rem; }
+.dialog-actions .btn-primary,
+.dialog-actions .btn-secondary,
+.dialog-actions .btn-danger { width: auto; }
+
+/* Photo of a person while editing */
+.photo-edit { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; }
+.photo-edit-image {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+/* Suggestions under the parents field */
+.parent-hint { margin: 0.5rem 0; color: var(--muted); font-size: 0.9rem; }
+.parent-hint .chip-group { margin-top: 0.35rem; }
+.chip-near small { color: inherit; opacity: 0.75; }
+.react-flow__node.flow-focus { filter: drop-shadow(0 0 8px var(--copper)); }
+.react-flow__node.flow-focus > * { outline: 3px solid var(--copper-line); outline-offset: 2px; border-radius: var(--radius); }

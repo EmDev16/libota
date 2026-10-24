@@ -26,7 +26,14 @@ const BASE_SCALE = 0.55; // a card is 110 pt wide: readable on paper
 const MIN_BRANCH_SCALE = 0.3; // below this a branch gets a bigger page instead of tiny text
 const MIN_POSTER = [420, 300];
 const LABEL_SIZE = { w: 260, h: 30 };
-const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
+// Same warm look as the site (beige, copper, navy)
+const INK = '#2a2319';
+const MUTED = '#6b5f4e';
+const NAVY = '#0A2342';
+const COPPER = '#B87333';
+const CARD_LINE = '#d4c8b8';
+const CARD_FILL = '#fffdf9';
+const CARD_FILL_DECEASED = '#f1ebe0';
 
 const fullName = (p) => `${p.firstName || ''} ${p.lastName || ''}`.trim();
 const namesOf = (people) => people.map(fullName).join(' & ');
@@ -369,7 +376,7 @@ function drawLayout(doc, layout, view, photos, cull) {
       if (!visible(x, y, x + LABEL_SIZE.w, y + LABEL_SIZE.h)) return;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(Math.max(18 * s, 8));
-      doc.setTextColor('#2c3e50');
+      doc.setTextColor(NAVY);
       doc.text(n.data.label, px(x), py(y + 20));
       return;
     }
@@ -377,12 +384,14 @@ function drawLayout(doc, layout, view, photos, cull) {
     // Person card
     if (!visible(x, y, x + W, y + H)) return;
     const p = n.data.person;
-    const color = GENDER_COLORS[p.gender] || GENDER_COLORS.other;
 
-    doc.setFillColor(p.deathDate ? '#f1f3f4' : '#ffffff');
-    doc.setDrawColor(color);
-    doc.setLineWidth(Math.max(2.5 * s, 0.8));
-    doc.roundedRect(px(x), py(y), W * s, H * s, 8 * s, 8 * s, 'FD');
+    // Plain card with a thin beige border and a copper bar on the left
+    doc.setFillColor(p.deathDate ? CARD_FILL_DECEASED : CARD_FILL);
+    doc.setDrawColor(CARD_LINE);
+    doc.setLineWidth(Math.max(1 * s, 0.5));
+    doc.roundedRect(px(x), py(y), W * s, H * s, 3 * s, 3 * s, 'FD');
+    doc.setFillColor(COPPER);
+    doc.rect(px(x), py(y), Math.max(4 * s, 1.5), H * s, 'F');
 
     // Optional photo on the left, text then starts after it
     const photo = photos.get(p._id);
@@ -406,12 +415,12 @@ function drawLayout(doc, layout, view, photos, cull) {
 
     const birth = p.birthDate ? new Date(p.birthDate).getFullYear() : '?';
     const death = p.deathDate ? new Date(p.deathDate).getFullYear() : '';
-    const lifespan = death ? `${birth} - ${death}` : `b. ${birth}`;
+    const lifespan = death ? `${birth} - ${death}` : `${birth} -`;
 
     const blockH = nameLines.length * nameSize * 1.2 + lifeSize * 1.4;
     let ty = py(y) + (H * s - blockH) / 2 + nameSize * 0.95;
 
-    doc.setTextColor('#2c3e50');
+    doc.setTextColor(INK);
     nameLines.forEach((line) => {
       doc.text(line, px(textX), ty, { align });
       ty += nameSize * 1.2;
@@ -419,7 +428,7 @@ function drawLayout(doc, layout, view, photos, cull) {
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(lifeSize);
-    doc.setTextColor('#7f8c8d');
+    doc.setTextColor(MUTED);
     doc.text(lifespan, px(textX), ty + lifeSize * 0.2, { align });
   });
 }
@@ -436,16 +445,16 @@ function drawMask(doc, w, h) {
 function drawFrame(doc, w, h, { title, subtitle, pageLabel }) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.setTextColor('#2c3e50');
+  doc.setTextColor(NAVY);
   doc.text(fitText(doc, title, w - 2 * MARGIN), MARGIN, MARGIN + 16);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setTextColor('#7f8c8d');
+  doc.setTextColor(MUTED);
   doc.text(fitText(doc, subtitle, w - 2 * MARGIN), MARGIN, MARGIN + 31);
 
-  doc.setDrawColor('#d5dbdb');
-  doc.setLineWidth(0.6);
+  doc.setDrawColor(COPPER);
+  doc.setLineWidth(0.8);
   doc.line(MARGIN, MARGIN + HEADER - 12, w - MARGIN, MARGIN + HEADER - 12);
 
   doc.text(`Libota family tree - ${todayString()}`, MARGIN, h - MARGIN + 4);

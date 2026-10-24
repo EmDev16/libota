@@ -18,6 +18,7 @@ import GalleryUpload from './pages/GalleryUpload';
 import MyRequests from './pages/MyRequests';
 import Requests from './pages/Requests';
 import Navbar from './components/Navbar';
+import { DialogProvider } from './components/DialogProvider';
 
 const ProtectedRoute = ({ children, adminOnly = false, memberOnly = false }) => {
   const { t } = useTranslation();
@@ -184,7 +185,9 @@ const AppContent = () => {
 const App = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <DialogProvider>
+        <AppContent />
+      </DialogProvider>
     </AuthProvider>
   );
 };

@@ -5,7 +5,7 @@ const Person = require('../models/Person');
 const { auth, adminAuth } = require('../middleware/auth');
 const { computeStats } = require('../utils/stats');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
-const { logEvent, personSnapshot } = require('../utils/audit');
+const { logEvent, personSnapshot, sameSnapshot } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -278,27 +278,35 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
     person.spouses = newSpouses;
     person.formerSpouses = newFormer;
 
+    // A new photo replaces the old one; "removePhoto" takes the photo away without a new one
     const oldPhoto = person.photo;
+    const dropPhoto = !newPhoto && req.body.removePhoto === 'true' && !!oldPhoto;
     if (newPhoto) {
       person.photo = newPhoto;
+    } else if (dropPhoto) {
+      person.photo = null;
     }
 
     await person.save();
     saved = true;
 
-    // The photo that was replaced is no longer needed
-    if (newPhoto && oldPhoto) {
+    // The photo that was replaced or removed is no longer needed
+    if ((newPhoto || dropPhoto) && oldPhoto) {
       await releasePhoto(oldPhoto, person._id);
     }
 
-    await logEvent(req, {
-      action: 'person.update',
-      targetType: 'person',
-      targetId: person._id,
-      targetName: `${person.firstName} ${person.lastName}`,
-      before: beforeSnapshot,
-      after: await personSnapshot(await Person.findById(person._id))
-    });
+    // Saving without changing anything is not an edit, so it is not written to the log
+    const afterSnapshot = await personSnapshot(await Person.findById(person._id));
+    if (!sameSnapshot(beforeSnapshot, afterSnapshot)) {
+      await logEvent(req, {
+        action: 'person.update',
+        targetType: 'person',
+        targetId: person._id,
+        targetName: `${person.firstName} ${person.lastName}`,
+        before: beforeSnapshot,
+        after: afterSnapshot
+      });
+    }
 
     const updatedPerson = await Person.findById(person._id)
       .populate('parents', 'firstName lastName')

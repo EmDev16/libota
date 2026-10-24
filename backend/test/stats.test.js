@@ -57,6 +57,20 @@ describe('computeStats', () => {
     assert.equal(stats.total, 2);
   });
 
+  it('averages the age of the living family, only for people with a birth date', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1990-06-01' }), // 36 on the test date
+        person('b', { birthDate: '1960-06-01' }), // 66
+        person('c', {}), // no birth date: ignored
+        person('d', { birthDate: '1900-01-01', deathDate: '1980-01-01' }) // deceased: ignored
+      ],
+      { today }
+    );
+    assert.equal(stats.ageSample, 2);
+    assert.equal(stats.averageAge, (stats.oldestLiving.age + stats.youngestLiving.age) / 2);
+  });
+
   it('averages the age at death, only for people with both dates', () => {
     const stats = computeStats(
       [
@@ -174,6 +188,7 @@ describe('computeStats', () => {
     const stats = computeStats([], { today });
     assert.equal(stats.total, 0);
     assert.equal(stats.averageLifespan, null);
+    assert.equal(stats.averageAge, null);
     assert.equal(stats.largestGeneration, null);
     assert.deepEqual(stats.growth, []);
   });

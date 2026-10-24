@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { personAPI } from '../api';
+import { photoUrl } from '../utils/photo';
+import { useDialog } from '../components/DialogProvider';
 
 const PersonForm = () => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,9 +23,14 @@ const PersonForm = () => {
     formerSpouses: [] // the partners from `spouses` whose relationship has ended
   });
   const [photo, setPhoto] = useState(null);
+  const [existingPhoto, setExistingPhoto] = useState(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const photoInput = useRef(null);
   const [allPeople, setAllPeople] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
+  const siblingOf = searchParams.get('siblingOf');
+  const childOf = searchParams.get('childOf');
 
   useEffect(() => {
     loadPeople();
@@ -35,8 +44,29 @@ const PersonForm = () => {
     try {
       const response = await personAPI.getAll();
       setAllPeople(response.data);
+      if (!id) prefill(response.data);
     } catch (error) {
       console.error('Error loading people:', error);
+    }
+  };
+
+  // "Add a sibling" / "Add a child" from the tree: the parents are already filled in
+  const prefill = (people) => {
+    const parentIdsOf = (p) => (p.parents || []).map((x) => x._id || x);
+    if (siblingOf) {
+      const sibling = people.find((p) => p._id === siblingOf);
+      if (sibling) {
+        setFormData((f) => ({ ...f, lastName: sibling.lastName, parents: parentIdsOf(sibling) }));
+      }
+    } else if (childOf) {
+      const parent = people.find((p) => p._id === childOf);
+      if (parent) {
+        setFormData((f) => ({
+          ...f,
+          parents: [parent._id],
+          lastName: parent.gender === 'male' ? parent.lastName : f.lastName
+        }));
+      }
     }
   };
 
@@ -44,6 +74,7 @@ const PersonForm = () => {
     try {
       const response = await personAPI.getById(id);
       const person = response.data;
+      setExistingPhoto(person.photo || null);
       setFormData({
         firstName: person.firstName,
         lastName: person.lastName,
@@ -76,6 +107,8 @@ const PersonForm = () => {
     data.append('formerSpouses', JSON.stringify(formData.formerSpouses));
     if (photo) {
       data.append('photo', photo);
+    } else if (removePhoto) {
+      data.append('removePhoto', 'true');
     }
 
     try {
@@ -87,7 +120,7 @@ const PersonForm = () => {
       navigate('/people');
     } catch (error) {
       console.error('Error saving person:', error);
-      alert(t('error'));
+      await dialog.alert(t('error'));
     } finally {
       setLoading(false);
     }
@@ -145,6 +178,62 @@ const PersonForm = () => {
         : [...formData.formerSpouses, personId]
     });
   };
+
+  // The photo shown: a newly chosen one, or the saved one (until it is removed)
+  const photoPreview = useMemo(() => {
+    if (photo) return URL.createObjectURL(photo);
+    if (existingPhoto && !removePhoto) return photoUrl(existingPhoto);
+    return null;
+  }, [photo, existingPhoto, removePhoto]);
+
+  const clearPhoto = () => {
+    setPhoto(null);
+    setRemovePhoto(true);
+    if (photoInput.current) photoInput.current.value = '';
+  };
+
+  // Who could be the other parent: the partners of the chosen parents, and the other parents of their children
+  const coParentSuggestions = useMemo(() => {
+    const selected = new Set(formData.parents);
+    const byId = new Map(allPeople.map((p) => [p._id, p]));
+    const found = new Map(); // id -> { person, with: names of the chosen parents }
+    const add = (candidate, parent) => {
+      const cid = candidate._id || candidate;
+      if (!cid || cid === id || selected.has(cid) || !byId.has(cid)) return;
+      const entry = found.get(cid) || { person: byId.get(cid), with: [] };
+      const pName = `${parent.firstName} ${parent.lastName}`;
+      if (!entry.with.includes(pName)) entry.with.push(pName);
+      found.set(cid, entry);
+    };
+    for (const parentId of formData.parents) {
+      const parent = byId.get(parentId);
+      if (!parent) continue;
+      (parent.spouses || []).forEach((s) => add(s, parent));
+      (parent.children || []).forEach((c) => {
+        const child = byId.get(c._id || c);
+        (child?.parents || []).forEach((other) => {
+          if ((other._id || other) !== parentId) add(other, parent);
+        });
+      });
+    }
+    return [...found.values()];
+  }, [formData.parents, allPeople, id]);
+
+  // Children the chosen parents already have: the person is their sibling
+  const siblings = useMemo(() => {
+    const seen = new Map();
+    for (const parentId of formData.parents) {
+      const parent = allPeople.find((p) => p._id === parentId);
+      (parent?.children || []).forEach((c) => {
+        const cid = c._id || c;
+        if (cid !== id) {
+          const child = allPeople.find((p) => p._id === cid);
+          if (child) seen.set(cid, `${child.firstName} ${child.lastName}`);
+        }
+      });
+    }
+    return [...seen.values()];
+  }, [formData.parents, allPeople, id]);
 
   const nameOf = (personId) => {
     const found = allPeople.find(p => p._id === personId);
@@ -208,10 +297,22 @@ const PersonForm = () => {
         </div>
         <div className="form-group">
           <label>{t('photo')}</label>
+          {photoPreview && (
+            <div className="photo-edit">
+              <img src={photoPreview} alt="" className="photo-edit-image" />
+              <button type="button" className="btn-secondary" onClick={clearPhoto}>
+                {t('removePhoto')}
+              </button>
+            </div>
+          )}
           <input
+            ref={photoInput}
             type="file"
             accept="image/*"
-            onChange={(e) => setPhoto(e.target.files[0])}
+            onChange={(e) => {
+              setPhoto(e.target.files[0] || null);
+              setRemovePhoto(false);
+            }}
           />
         </div>
         <div className="form-group">
@@ -237,6 +338,27 @@ const PersonForm = () => {
               </label>
             ))}
           </div>
+          {siblings.length > 0 && (
+            <p className="parent-hint">{t('formSiblings', { names: siblings.join(', ') })}</p>
+          )}
+          {coParentSuggestions.length > 0 && (
+            <div className="parent-hint">
+              <span>{t('formOtherParent')}</span>
+              <div className="chip-group">
+                {coParentSuggestions.map(({ person, with: names }) => (
+                  <button
+                    type="button"
+                    key={person._id}
+                    className="chip chip-near"
+                    onClick={() => handleMultiSelect('parents', person._id)}
+                  >
+                    + {person.firstName} {person.lastName}
+                    <small> · {t('formPartnerOf', { name: names.join(' & ') })}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="form-group">
           <label>{t('spouses')}</label>

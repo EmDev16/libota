@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { treeAPI, personAPI } from '../api';
+import { useDialog } from '../components/DialogProvider';
+import { relationSentence, genderedFrench } from '../utils/relationship';
 
 const RelationshipFinder = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const dialog = useDialog();
   const [people, setPeople] = useState([]);
   const [person1, setPerson1] = useState('');
   const [person2, setPerson2] = useState('');
@@ -25,7 +28,7 @@ const RelationshipFinder = () => {
 
   const handleFind = async () => {
     if (!person1 || !person2) {
-      alert(t('selectPerson'));
+      await dialog.alert(t('selectPerson'));
       return;
     }
 
@@ -81,7 +84,33 @@ const RelationshipFinder = () => {
         </button>
       </div>
 
-      {result && (
+      {result && (() => {
+        // "Parent" alone can mean a relative in French, so a step says father / mother, son / daughter, husband / wife
+        const stepLabel = (type, g) => {
+          const keys = {
+            parent: { male: 'father', female: 'mother' },
+            child: { male: 'son', female: 'daughter' },
+            spouse: { male: 'husband', female: 'wife' }
+          };
+          const key = (keys[type] && keys[type][g]) || type;
+          return t(key) !== key ? t(key) : type;
+        };
+        const titleOf = (key, fallback) => (t(key) !== key ? t(key) : fallback);
+        const lang = (i18n.language || 'en').slice(0, 2);
+        const gender = result.person2?.gender;
+        const title = titleOf(result.relationshipKey, result.relationship);
+        const sentence =
+          result.person1 && result.person2
+            ? relationSentence({
+                lang,
+                a: result.person2.firstName,
+                b: result.person1.firstName,
+                rel: title,
+                relKey: result.relationshipKey,
+                gender
+              })
+            : null;
+        return (
         <div className="relationship-result">
           {result.mutualKey && result.mutualKey !== 'none' && (
             <div className="relationship-badge">
@@ -90,12 +119,10 @@ const RelationshipFinder = () => {
           )}
 
           <h2 className="relationship-title">
-            {t(result.relationshipKey) !== result.relationshipKey ? t(result.relationshipKey) : result.relationship}
+            {lang === 'fr' ? genderedFrench(title, gender) : title}
           </h2>
 
-          {result.description && (
-            <p className="relationship-desc">{result.description}</p>
-          )}
+          {sentence && <p className="relationship-desc">{sentence}</p>}
 
           {result.path && result.path.length > 0 && (
             <div className="relationship-path">
@@ -108,9 +135,7 @@ const RelationshipFinder = () => {
                         <span className="step-arrow">➔</span>
                         {person.relationToPrevious && (
                           <span className="step-badge">
-                            {t(person.relationToPrevious) !== person.relationToPrevious
-                              ? t(person.relationToPrevious)
-                              : person.relationToPrevious}
+                            {stepLabel(person.relationToPrevious, person.gender)}
                           </span>
                         )}
                         <span className="step-arrow">➔</span>
@@ -125,7 +150,8 @@ const RelationshipFinder = () => {
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

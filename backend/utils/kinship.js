@@ -10,8 +10,9 @@
  * @param {Object} p1 Starting person { _id, firstName, lastName, gender }
  * @param {Object} p2 Target person { _id, firstName, lastName, gender }
  * @param {Array<{ from: string, to: string, type: 'parent'|'child'|'spouse' }>} steps
+ * @param {{ halfSiblings?: boolean }} context extra facts the steps cannot show (siblings with one shared parent)
  */
-function deduceKinship(p1, p2, steps) {
+function deduceKinship(p1, p2, steps, context = {}) {
   if (p1._id.toString() === p2._id.toString()) {
     return {
       relationshipKey: 'samePerson',
@@ -103,6 +104,19 @@ function deduceKinship(p1, p2, steps) {
       const downCount = firstChildIdx === -1 ? 0 : stepTypes.length - firstChildIdx;
 
       // 4. Siblings: UP 1, DOWN 1
+      if (upCount === 1 && downCount === 1 && context.halfSiblings) {
+        const targetTitle = p2Gender === 'female' ? 'Half-sister' : (p2Gender === 'male' ? 'Half-brother' : 'Half-sibling');
+        const targetKey = p2Gender === 'female' ? 'halfSister' : (p2Gender === 'male' ? 'halfBrother' : 'halfSibling');
+        return {
+          relationshipKey: targetKey,
+          mutualKey: 'halfSiblings',
+          category: 'siblings',
+          targetTitle,
+          mutualTitle: 'Half-siblings',
+          description: `${p2.firstName} is ${p1.firstName}'s ${targetTitle}`
+        };
+      }
+
       if (upCount === 1 && downCount === 1) {
         const targetTitle = p2Gender === 'female' ? 'Sister' : (p2Gender === 'male' ? 'Brother' : 'Sibling');
         const targetKey = p2Gender === 'female' ? 'sister' : (p2Gender === 'male' ? 'brother' : 'sibling');
@@ -373,6 +387,75 @@ function deduceKinship(p1, p2, steps) {
       mutualTitle: 'In-laws',
       description: `${p2.firstName} is ${p1.firstName}'s ${targetTitle}`
     };
+  }
+
+  // 16. Other relatives by marriage and step-family: exactly one "spouse" step, with a blood line
+  // (up the tree, then down) on one side or both sides of it
+  const spouseAt = stepTypes.indexOf('spouse');
+  if (spouseAt !== -1 && stepTypes.lastIndexOf('spouse') === spouseAt) {
+    const line = (types) => {
+      const firstChild = types.indexOf('child');
+      const ups = firstChild === -1 ? types.length : firstChild;
+      const downs = firstChild === -1 ? 0 : types.length - firstChild;
+      const ok = types.slice(0, ups).every((x) => x === 'parent') && types.slice(ups).every((x) => x === 'child');
+      return ok ? { up: ups, down: downs } : null;
+    };
+    const before = line(stepTypes.slice(0, spouseAt));
+    const after = line(stepTypes.slice(spouseAt + 1));
+    const by = (female, male, neutral) => (p2Gender === 'female' ? female : (p2Gender === 'male' ? male : neutral));
+    const make = (titles, keys, mutualKey, mutualTitle, category) => ({
+      relationshipKey: by(...keys),
+      mutualKey,
+      category,
+      targetTitle: by(...titles),
+      mutualTitle,
+      description: `${p2.firstName} is ${p1.firstName}'s ${by(...titles)}`
+    });
+    const inLaw = (titles, keys) => make(titles, keys, 'inLaws', 'In-laws', 'inLaws');
+    const step = (titles, keys) => make(titles, keys, 'stepFamily', 'Step-family', 'stepFamily');
+    const at = (line2, up, down) => line2 && line2.up === up && line2.down === down;
+    const generic = () => ({
+      relationshipKey: 'relativeInLaw',
+      mutualKey: 'inLaws',
+      category: 'inLaws',
+      targetTitle: 'Relative by marriage',
+      mutualTitle: 'In-laws',
+      description: `${p2.firstName} is a relative of ${p1.firstName} by marriage`
+    });
+
+    // a step-parent's own parent (parent, partner, parent) is a step-grandparent too
+    if (at(before, 1, 0) && at(after, 1, 0)) {
+      return step(['Step-grandmother', 'Step-grandfather', 'Step-grandparent'], ['stepGrandmother', 'stepGrandfather', 'stepGrandparent']);
+    }
+
+    // somebody's partner: a parent's partner (step-parent), a cousin's partner...
+    if (before && after && after.up === 0 && after.down === 0 && !(before.up === 0 && before.down === 0)) {
+      if (at(before, 1, 0)) return step(['Stepmother', 'Stepfather', 'Stepparent'], ['stepmother', 'stepfather', 'stepparent']);
+      if (at(before, 2, 0)) return step(['Step-grandmother', 'Step-grandfather', 'Step-grandparent'], ['stepGrandmother', 'stepGrandfather', 'stepGrandparent']);
+      if (at(before, 0, 2)) return inLaw(['Granddaughter-in-law', 'Grandson-in-law', 'Grandchild-in-law'], ['granddaughterInLaw', 'grandsonInLaw', 'grandchildInLaw']);
+      if (at(before, 2, 1)) return inLaw(['Aunt by marriage', 'Uncle by marriage', 'Aunt / Uncle by marriage'], ['auntInLaw', 'uncleInLaw', 'auntOrUncleInLaw']);
+      if (at(before, 1, 2)) return inLaw(['Niece by marriage', 'Nephew by marriage', 'Niece / Nephew by marriage'], ['nieceInLaw', 'nephewInLaw', 'nephewOrNieceInLaw']);
+      if (at(before, 2, 2)) return inLaw(['Cousin by marriage', 'Cousin by marriage', 'Cousin by marriage'], ['cousinInLaw', 'cousinInLaw', 'cousinInLaw']);
+      return generic();
+    }
+
+    // a partner's relative: a partner's child (step-child), a partner's cousin...
+    if (before && after && before.up === 0 && before.down === 0 && !(after.up === 0 && after.down === 0)) {
+      if (at(after, 0, 1)) return step(['Stepdaughter', 'Stepson', 'Stepchild'], ['stepdaughter', 'stepson', 'stepchild']);
+      if (at(after, 0, 2)) return step(['Step-granddaughter', 'Step-grandson', 'Step-grandchild'], ['stepGranddaughter', 'stepGrandson', 'stepGrandchild']);
+      if (at(after, 2, 0)) return inLaw(['Grandmother-in-law', 'Grandfather-in-law', 'Grandparent-in-law'], ['grandmotherInLaw', 'grandfatherInLaw', 'grandparentInLaw']);
+      if (at(after, 2, 1)) return inLaw(['Aunt by marriage', 'Uncle by marriage', 'Aunt / Uncle by marriage'], ['auntInLaw', 'uncleInLaw', 'auntOrUncleInLaw']);
+      if (at(after, 1, 2)) return inLaw(['Niece by marriage', 'Nephew by marriage', 'Niece / Nephew by marriage'], ['nieceInLaw', 'nephewInLaw', 'nephewOrNieceInLaw']);
+      if (at(after, 2, 2)) return inLaw(['Cousin by marriage', 'Cousin by marriage', 'Cousin by marriage'], ['cousinInLaw', 'cousinInLaw', 'cousinInLaw']);
+      return generic();
+    }
+
+    // a parent's partner's child: step-brother or step-sister
+    if (at(before, 1, 0) && at(after, 0, 1)) {
+      return step(['Stepsister', 'Stepbrother', 'Stepsibling'], ['stepsister', 'stepbrother', 'stepsibling']);
+    }
+
+    return generic();
   }
 
   // Generic relative fallback

@@ -42,7 +42,7 @@ export const GalleryCard = () => {
 };
 
 // What needs the admin's attention, next to the latest activity (under everything)
-const AdminOverview = () => {
+const AdminOverview = ({ isAdmin = false }) => {
   const { t } = useTranslation();
   const [people, setPeople] = useState(null);
   const [pending, setPending] = useState(0);
@@ -51,9 +51,12 @@ const AdminOverview = () => {
   // each part loads on its own, so one failing does not hide the others
   useEffect(() => {
     personAPI.getAll().then((r) => setPeople(r.data)).catch(() => {});
-    requestAPI.count().then((r) => setPending(r.data.pending)).catch(() => {});
-    auditAPI.list({ page: 1 }).then((r) => setEntries(r.data.entries.slice(0, 5))).catch(() => {});
-  }, []);
+    // suggestions and the activity log are for admins only
+    if (isAdmin) {
+      requestAPI.count().then((r) => setPending(r.data.pending)).catch(() => {});
+      auditAPI.list({ page: 1 }).then((r) => setEntries(r.data.entries.slice(0, 5))).catch(() => {});
+    }
+  }, [isAdmin]);
 
   const name = (p) => `${p.firstName} ${p.lastName}`;
   const todos = [];
@@ -71,10 +74,10 @@ const AdminOverview = () => {
 
   return (
     <div className="admin-overview">
-      <div className="admin-bottom">
+      <div className={`admin-bottom${isAdmin ? '' : ' admin-bottom-single'}`}>
         <section className="insight-card">
           <h2>{t('todoTitle')}</h2>
-          {pending > 0 && (
+          {isAdmin && pending > 0 && (
             <p>
               <Link to="/admin/requests" className="todo-link">{t('todoPending', { n: pending })}</Link>
             </p>
@@ -86,7 +89,7 @@ const AdminOverview = () => {
               <ul className="plain-list">
                 {x.list.slice(0, SHOWN).map((p) => (
                   <li key={p._id}>
-                    <Link to={`/people/${p._id}/edit`} className="todo-link">{name(p)}</Link>
+                    <Link to={isAdmin ? `/people/${p._id}/edit` : `/tree?person=${p._id}`} className="todo-link">{name(p)}</Link>
                   </li>
                 ))}
                 {x.list.length > SHOWN && <li className="muted">{t('todoMore', { n: x.list.length - SHOWN })}</li>}
@@ -95,6 +98,7 @@ const AdminOverview = () => {
           ))}
         </section>
 
+        {isAdmin && (
         <section className="insight-card">
           <h2>{t('recentActivityTitle')}</h2>
           {entries && entries.length === 0 && <p className="muted">{t('logNone')}</p>}
@@ -112,6 +116,7 @@ const AdminOverview = () => {
           )}
           <p><Link to="/admin/log" className="todo-link">{t('recentActivityAll')}</Link></p>
         </section>
+        )}
       </div>
     </div>
   );

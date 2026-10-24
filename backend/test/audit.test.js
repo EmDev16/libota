@@ -60,6 +60,21 @@ describe('activity log', () => {
     assert.deepEqual(actions, ['person.create', 'person.update', 'person.delete']);
   });
 
+  it('does not log an edit when nothing was changed', async () => {
+    const person = await addPerson({ firstName: 'Ruth', lastName: 'K', birthDate: '1950-01-02' });
+    const same = await as(adminToken, request(app).put(`/api/person/${person._id}`)).send({
+      firstName: 'Ruth',
+      lastName: 'K',
+      birthDate: '1950-01-02',
+      gender: 'female'
+    });
+    assert.equal(same.status, 200);
+    assert.equal(await AuditLog.countDocuments({ action: 'person.update' }), 0);
+
+    await as(adminToken, request(app).put(`/api/person/${person._id}`)).send({ firstName: 'Ruthie' });
+    assert.equal(await AuditLog.countDocuments({ action: 'person.update' }), 1);
+  });
+
   it('logs a failed change', async () => {
     const res = await as(adminToken, request(app).delete('/api/person/64b000000000000000000000'));
     assert.equal(res.status, 404);

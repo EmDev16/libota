@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +20,7 @@ import { UnionNode, LabelNode, BusEdge } from '../components/TreeNodes';
 import ExportPdfModal from '../components/ExportPdfModal';
 import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
 import { calculateGraphLayoutFor } from '../utils/graphLayout';
+import { familyOptions, oldestOfFamily } from '../utils/families';
 import { formatDate, localToday } from '../utils/dates';
 import { birthdayBadge } from '../utils/birthdays';
 
@@ -38,10 +39,10 @@ const isPhone = typeof window !== 'undefined' && window.innerWidth < 600;
 const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
-const PersonCard = ({ person, onClick, style }) => {
+const PersonCard = ({ person, onClick, style, focused }) => {
   const badge = birthdayBadge(person, localToday());
   return (
-  <div className="pedigree-card" style={style} onClick={() => onClick(person)}>
+  <div className={`pedigree-card${focused ? ' pedigree-focus' : ''}`} style={style} onClick={() => onClick(person)}>
     {badge && (
       <span className="birthday-badge" title={badge.title} aria-label={badge.title}>
         {badge.emoji}
@@ -67,7 +68,7 @@ const PersonCard = ({ person, onClick, style }) => {
 
 // The traditional view: the same positions as the modern view (every person once, parents above,
 // partners side by side), drawn as cards with square lines
-const TraditionalTree = ({ layout, onPersonClick }) => {
+const TraditionalTree = ({ layout, onPersonClick, focusId }) => {
   const PAD = 40;
   const { nodes, geometry, size } = layout;
   const { NODE_W, NODE_H, ROW_GAP } = MODERN_SIZES;
@@ -144,6 +145,7 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
           return (
             <div
               key={node.id}
+              id={`person-${node.data.person._id}`}
               style={{
                 position: 'absolute',
                 left: node.position.x + PAD,
@@ -155,6 +157,7 @@ const TraditionalTree = ({ layout, onPersonClick }) => {
               <PersonCard
                 person={node.data.person}
                 onClick={onPersonClick}
+                focused={node.data.person._id === focusId}
                 style={{ width: '100%', height: '100%', boxSizing: 'border-box' }}
               />
             </div>
@@ -172,14 +175,18 @@ const FamilyTree = () => {
   const { isAdmin } = useAuth();
   const [people, setPeople] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [treeStyle, setTreeStyle] = useState('traditional');
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [rootPersonId, setRootPersonId] = useState('');
+  // Phones start with the traditional view, computers with the modern one (the person can switch)
+  const [treeStyle, setTreeStyle] = useState(isPhone ? 'traditional' : 'modern');
   const [fitKey, setFitKey] = useState(0); // bump to re-fit the modern view
+  const [family, setFamily] = useState(''); // '' = the whole tree, or "word:mbala"
+  const [focusId, setFocusId] = useState(null); // the person the view is centred on
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const transform = useRef(null);
+  const flowInstance = useRef(null);
 
-  // XYFlow state for modern view
+  // XYFlow state for the modern view
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -187,29 +194,67 @@ const FamilyTree = () => {
     loadTree();
   }, []);
 
-  useEffect(() => {
-    if (people.length > 0 && treeStyle === 'modern') {
-      const { nodes: flowNodes, edges: flowEdges } = calculateGraphLayoutFor(
-        people,
-        rootPersonId,
-        t('unlinkedMembers', 'Unlinked Members')
-      );
-      setNodes(flowNodes);
-      setEdges(flowEdges);
-    }
-  }, [people, treeStyle, rootPersonId, setNodes, setEdges, t]);
+  const families = useMemo(() => familyOptions(people), [people]);
+  // "Mbala": the oldest Mbala, and everybody who descends from them
+  const familyRoot = useMemo(() => (family ? oldestOfFamily(people, family) : null), [people, family]);
+  const rootPersonId = familyRoot ? familyRoot._id : '';
 
-  // Coming from the search box or the timeline (/tree?person=<id>): open that person's card
+  const layout = useMemo(() => {
+    if (people.length === 0) return null;
+    try {
+      return calculateGraphLayoutFor(people, rootPersonId, t('unlinkedMembers', 'Unlinked Members'), {
+        descendantsOnly: !!rootPersonId
+      });
+    } catch (error) {
+      console.error('Error rendering tree:', error);
+      return { error };
+    }
+  }, [people, rootPersonId, t]);
+
+  useEffect(() => {
+    if (layout && !layout.error && treeStyle === 'modern') {
+      setNodes(layout.nodes);
+      setEdges(layout.edges);
+    }
+  }, [layout, treeStyle, setNodes, setEdges]);
+
+  // Coming from the search box or the timeline (/tree?person=<id>): show the whole tree centred on that person
   const personFromLink = searchParams.get('person');
   useEffect(() => {
     if (!personFromLink || people.length === 0) return;
     const found = people.find((p) => String(p._id) === personFromLink);
     if (found) {
-      setSelectedPerson(found);
-      setShowModal(true);
+      setFamily('');
+      setFocusId(found._id);
     }
     setSearchParams({}, { replace: true });
   }, [personFromLink, people, setSearchParams]);
+
+  // Move the view to the person once the tree is on screen, and let the card shine for a moment
+  useEffect(() => {
+    if (!focusId || !layout || layout.error) return undefined;
+    const move = setTimeout(() => {
+      if (treeStyle === 'modern') {
+        const node = layout.nodes.find((n) => n.type === 'personNode' && n.data.person._id === focusId);
+        const flow = flowInstance.current;
+        if (node && flow) {
+          const { NODE_W, NODE_H } = MODERN_SIZES;
+          flow.setCenter(node.position.x + NODE_W / 2, node.position.y + NODE_H / 2, {
+            zoom: isPhone ? 0.8 : 1,
+            duration: 500
+          });
+        }
+      } else {
+        const api = transform.current;
+        if (api && api.zoomToElement) api.zoomToElement(`person-${focusId}`, isPhone ? 0.7 : 1, 500);
+      }
+    }, 450);
+    const stop = setTimeout(() => setFocusId(null), 4000);
+    return () => {
+      clearTimeout(move);
+      clearTimeout(stop);
+    };
+  }, [focusId, layout, treeStyle]);
 
   const loadTree = async () => {
     try {
@@ -228,18 +273,12 @@ const FamilyTree = () => {
     setShowModal(true);
   };
 
-  const handleNodeClick = useCallback((event, node) => {
-    if (node.type !== 'personNode') return; // dots and labels are not clickable
-    setSelectedPerson(node.data.person);
-    setShowModal(true);
-  }, []);
-
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedPerson(null);
   };
 
-  // Top bar: style select, root selector (traditional view only), reset zoom (modern view only)
+  // Top bar: pick a family (last name), export, reset the view
   const renderControls = () => (
     <div className="tree-controls">
       <select
@@ -253,16 +292,17 @@ const FamilyTree = () => {
 
       {people.length > 0 && (
         <div className="root-selector-inline">
-          <label>{t('viewFrom')}:</label>
+          <label htmlFor="family-select">{t('viewFrom')}:</label>
           <select
-            value={rootPersonId}
-            onChange={(e) => setRootPersonId(e.target.value)}
+            id="family-select"
+            value={family}
+            onChange={(e) => setFamily(e.target.value)}
             className="root-select"
           >
             <option value="">{t('entireTree')}</option>
-            {people.map(person => (
-              <option key={person._id} value={person._id}>
-                {person.firstName} {person.lastName}
+            {families.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label} ({f.count})
               </option>
             ))}
           </select>
@@ -275,8 +315,15 @@ const FamilyTree = () => {
         </button>
       )}
 
-      {treeStyle === 'modern' && (
-        <button className="btn-secondary" onClick={() => setFitKey(k => k + 1)}>
+      {people.length > 0 && (
+        <button
+          className="btn-secondary"
+          onClick={() =>
+            treeStyle === 'modern'
+              ? setFitKey((k) => k + 1)
+              : transform.current && transform.current.resetTransform()
+          }
+        >
           {t('resetZoom')}
         </button>
       )}
@@ -296,18 +343,34 @@ const FamilyTree = () => {
     );
   }
 
-  const renderModernView = () => {
-    try {
-      return (
+  const hasParents = selectedPerson && (selectedPerson.parents || []).length > 0;
+
+  return (
+    <div className="family-tree">
+      {renderControls()}
+
+      {layout && layout.error ? (
+        <div className="error">Error rendering tree: {layout.error.message}</div>
+      ) : treeStyle === 'modern' ? (
         <div className="modern-tree-view">
           <ReactFlow
             // new key = the view is re-fitted (tree changed, or "reset" was clicked)
             key={`${rootPersonId || 'all'}-${fitKey}-${nodes.length}`}
-            nodes={nodes}
+            nodes={nodes.map((n) =>
+              n.type === 'personNode' && n.data.person._id === focusId
+                ? { ...n, className: 'flow-focus' }
+                : n
+            )}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
+            onNodeClick={(event, node) => {
+              if (node.type !== 'personNode') return; // dots and labels are not clickable
+              openPerson(node.data.person);
+            }}
+            onInit={(instance) => {
+              flowInstance.current = instance;
+            }}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             nodesConnectable={false}
@@ -331,38 +394,16 @@ const FamilyTree = () => {
             />
           </ReactFlow>
         </div>
-      );
-    } catch (error) {
-      console.error('Error rendering modern view:', error);
-      return <div className="error">Error rendering modern view: {error.message}</div>;
-    }
-  };
-
-  const renderTraditionalView = () => {
-    try {
-      const layout = calculateGraphLayoutFor(people, rootPersonId, t('unlinkedMembers', 'Unlinked Members'));
-      return <TraditionalTree layout={layout} onPersonClick={openPerson} />;
-    } catch (error) {
-      console.error('Error rendering traditional view:', error);
-      return <div className="error">Error rendering tree: {error.message}</div>;
-    }
-  };
-
-  return (
-    <div className="family-tree">
-      {renderControls()}
-
-      {treeStyle === 'modern' ? (
-        renderModernView()
       ) : (
         // on a phone the tree starts zoomed out, and can be pinched out further
         <TransformWrapper
+          ref={transform}
           initialScale={isPhone ? 0.5 : 1}
           minScale={isPhone ? 0.15 : 0.3}
           maxScale={3}
         >
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
-            {renderTraditionalView()}
+            <TraditionalTree layout={layout} onPersonClick={openPerson} focusId={focusId} />
           </TransformComponent>
         </TransformWrapper>
       )}
@@ -406,12 +447,28 @@ const FamilyTree = () => {
                   {t('galleryPhotosLink')}
                 </button>
                 {isAdmin && (
-                  <button
-                    className="btn-primary"
-                    onClick={() => navigate(`/people/${selectedPerson._id}/edit`)}
-                  >
-                    {t('edit')}
-                  </button>
+                  <>
+                    {hasParents && (
+                      <button
+                        className="btn-secondary"
+                        onClick={() => navigate(`/people/new?siblingOf=${selectedPerson._id}`)}
+                      >
+                        {t('addSibling')}
+                      </button>
+                    )}
+                    <button
+                      className="btn-secondary"
+                      onClick={() => navigate(`/people/new?childOf=${selectedPerson._id}`)}
+                    >
+                      {t('addChild')}
+                    </button>
+                    <button
+                      className="btn-primary"
+                      onClick={() => navigate(`/people/${selectedPerson._id}/edit`)}
+                    >
+                      {t('edit')}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

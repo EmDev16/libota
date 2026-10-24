@@ -7,6 +7,7 @@ import { formatDate } from '../utils/dates';
 import { photoUrl } from '../utils/photo';
 import { thumbUrl, layoutColumns, columnCount } from '../utils/gallery';
 import TagInput from '../components/TagInput';
+import { useDialog } from '../components/DialogProvider';
 import PeopleTagger from '../components/PeopleTagger';
 
 const whenOf = (p) => (p.date ? formatDate(p.date) : p.year ? String(p.year) : '');
@@ -23,6 +24,7 @@ const PersonIcon = () => (
 
 const Lightbox = ({ photo, neighbors, hasPrev, hasNext, onPrev, onNext, onClose, onTag, onPerson, isAdmin, options, family, onSaved, onDeleted }) => {
   const { t } = useTranslation();
+  const dialog = useDialog();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -114,7 +116,7 @@ const Lightbox = ({ photo, neighbors, hasPrev, hasNext, onPrev, onNext, onClose,
   };
 
   const remove = async () => {
-    if (!window.confirm(t('galleryDeleteConfirm'))) return;
+    if (!(await dialog.confirm(t('galleryDeleteConfirm'), { danger: true }))) return;
     setBusy(true);
     try {
       await galleryAPI.remove(photo.id);

@@ -135,8 +135,8 @@ const Dashboard = () => {
           <Tile value={stats.couples} label={t('statCouples', 'Couples')} />
           <Tile value={stats.generations} label={t('statGenerations', 'Generations')} />
           <Tile
-            value={stats.averageLifespan !== null ? stats.averageLifespan : '–'}
-            label={t('statAverageAge', 'Average age at death')}
+            value={stats.averageAge !== null && stats.averageAge !== undefined ? stats.averageAge : '–'}
+            label={t('statAverageAge', 'Average age')}
           />
         </div>
 
@@ -246,7 +246,7 @@ const Dashboard = () => {
             </section>
           )}
 
-          {isAdmin && <GalleryCard />}
+          <GalleryCard />
         </div>
       </>
     );
@@ -275,7 +275,7 @@ const Dashboard = () => {
         {isAdmin && (
           <div className="dashboard-card" onClick={() => navigate('/people/new')}>
             <h2>{t('addPerson')}</h2>
-            <p>{t('createSuccess')}</p>
+            <p>{t('dashAddPersonText')}</p>
           </div>
         )}
         {!isAdmin && (
@@ -300,7 +300,7 @@ const Dashboard = () => {
 
       {canSeeStats && renderStats()}
 
-      {isAdmin && <AdminOverview />}
+      {canSeeStats && <AdminOverview isAdmin={isAdmin} />}
 
     </div>
   );
