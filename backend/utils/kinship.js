@@ -423,6 +423,11 @@ function deduceKinship(p1, p2, steps, context = {}) {
       description: `${p2.firstName} is a relative of ${p1.firstName} by marriage`
     });
 
+    // a step-parent's own parent (parent, partner, parent) is a step-grandparent too
+    if (at(before, 1, 0) && at(after, 1, 0)) {
+      return step(['Step-grandmother', 'Step-grandfather', 'Step-grandparent'], ['stepGrandmother', 'stepGrandfather', 'stepGrandparent']);
+    }
+
     // somebody's partner: a parent's partner (step-parent), a cousin's partner...
     if (before && after && after.up === 0 && after.down === 0 && !(before.up === 0 && before.down === 0)) {
       if (at(before, 1, 0)) return step(['Stepmother', 'Stepfather', 'Stepparent'], ['stepmother', 'stepfather', 'stepparent']);

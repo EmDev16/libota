@@ -139,6 +139,7 @@ export default {
   pdfModeTilesText: 'Nzete ekatami na bikasa ya mbala na mbala mpo na kobimisa.',
   pdfModeBranches: 'Lokasa moko mpo na etuka moko',
   pdfModeBranchesText: 'Lokasa ya mobimba, na sima lokasa moko mpo na etuka nyonso.',
+  wife: 'Mwasi',
   logGalleryAdded: 'Foto etiami',
   logGalleryEdited: 'Foto ebongolami',
   logGalleryDeleted: 'Foto elongolami',

@@ -180,7 +180,7 @@ const FamilyTree = () => {
   // Phones start with the traditional view, computers with the modern one (the person can switch)
   const [treeStyle, setTreeStyle] = useState(isPhone ? 'traditional' : 'modern');
   const [fitKey, setFitKey] = useState(0); // bump to re-fit the modern view
-  const [family, setFamily] = useState(''); // '' = the whole tree, or "word:mbala" / "full:mbala venia"
+  const [family, setFamily] = useState(''); // '' = the whole tree, or "word:mbala"
   const [focusId, setFocusId] = useState(null); // the person the view is centred on
   const [showPdfModal, setShowPdfModal] = useState(false);
   const transform = useRef(null);

@@ -137,6 +137,7 @@ export default {
   pdfModeTilesText: 'De boom wordt in gewone pagina’s gesneden die je kunt afdrukken en aan elkaar plakken.',
   pdfModeBranches: 'Eén pagina per tak',
   pdfModeBranchesText: 'Een overzichtspagina en daarna een pagina voor elke tak van de familie.',
+  wife: 'Echtgenote',
   logGalleryAdded: 'Foto toegevoegd',
   logGalleryEdited: 'Foto gewijzigd',
   logGalleryDeleted: 'Foto verwijderd',

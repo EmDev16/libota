@@ -10,13 +10,13 @@ const people = [
 ];
 
 describe('families by last name', () => {
-  it('offers every word, and every last name made of several words', () => {
+  it('offers every word of every last name, with no separate entry for a combination', () => {
     expect(familyOptions(people).map((o) => `${o.label}:${o.count}`)).toEqual([
-      'Kalala:1', 'Mbala:3', 'Mbala Venia:1', 'Venia:2'
+      'Kalala:1', 'Mbala:3', 'Venia:2'
     ]);
   });
 
-  it('"Mbala" includes "Mbala Venia", but "Venia" alone is another family than "Mbala" alone', () => {
+  it('"Mbala Venia" belongs to both the Mbala and the Venia family', () => {
     expect(peopleOfFamily(people, 'word:mbala').map((p) => p._id)).toEqual(['1', '2', '4']);
     expect(peopleOfFamily(people, 'word:venia').map((p) => p._id)).toEqual(['2', '3']);
     expect(peopleOfFamily(people, 'full:mbala venia').map((p) => p._id)).toEqual(['2']);

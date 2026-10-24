@@ -137,6 +137,7 @@ export default {
   pdfModeTilesText: 'The tree is cut into normal paper pages you can print and tape together.',
   pdfModeBranches: 'One page per branch',
   pdfModeBranchesText: 'An overview page, then one page for every branch of the family.',
+  wife: 'Wife',
   logGalleryAdded: 'Photo added',
   logGalleryEdited: 'Photo edited',
   logGalleryDeleted: 'Photo deleted',

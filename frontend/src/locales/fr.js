@@ -137,6 +137,7 @@ export default {
   pdfModeTilesText: 'L’arbre est découpé en pages de format normal à imprimer et assembler.',
   pdfModeBranches: 'Une page par branche',
   pdfModeBranchesText: 'Une page d’ensemble, puis une page pour chaque branche de la famille.',
+  wife: 'Épouse',
   logGalleryAdded: 'Photo ajoutée',
   logGalleryEdited: 'Photo modifiée',
   logGalleryDeleted: 'Photo supprimée',

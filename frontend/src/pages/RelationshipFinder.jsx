@@ -85,6 +85,16 @@ const RelationshipFinder = () => {
       </div>
 
       {result && (() => {
+        // "Parent" alone can mean a relative in French, so a step says father / mother, son / daughter, husband / wife
+        const stepLabel = (type, g) => {
+          const keys = {
+            parent: { male: 'father', female: 'mother' },
+            child: { male: 'son', female: 'daughter' },
+            spouse: { male: 'husband', female: 'wife' }
+          };
+          const key = (keys[type] && keys[type][g]) || type;
+          return t(key) !== key ? t(key) : type;
+        };
         const titleOf = (key, fallback) => (t(key) !== key ? t(key) : fallback);
         const lang = (i18n.language || 'en').slice(0, 2);
         const gender = result.person2?.gender;
@@ -125,9 +135,7 @@ const RelationshipFinder = () => {
                         <span className="step-arrow">➔</span>
                         {person.relationToPrevious && (
                           <span className="step-badge">
-                            {t(person.relationToPrevious) !== person.relationToPrevious
-                              ? t(person.relationToPrevious)
-                              : person.relationToPrevious}
+                            {stepLabel(person.relationToPrevious, person.gender)}
                           </span>
                         )}
                         <span className="step-arrow">➔</span>

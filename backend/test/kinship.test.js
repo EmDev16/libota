@@ -218,6 +218,9 @@ const emily = { _id: '8', firstName: 'Emily', lastName: 'Smith', gender: 'female
   assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), S('8')])), 'stepGrandmother|stepFamily');
   assert.strictEqual(tags(deduceKinship(ben, ned, [S('9'), C('1'), C('4')])), 'stepGrandson|stepFamily');
 
+  // Marc's parent is married to Isaac, whose parent is Daniel: Daniel is Marc's step-grandfather
+  assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), S('9'), P('7')])), 'stepGrandfather|stepFamily');
+
   // relatives by marriage
   assert.strictEqual(tags(deduceKinship(ben, emily, [P('1'), P('7'), C('9'), S('8')])), 'auntInLaw|inLaws');
   assert.strictEqual(tags(deduceKinship(ben, ned, [P('1'), P('7'), C('9'), S('4')])), 'uncleInLaw|inLaws');
