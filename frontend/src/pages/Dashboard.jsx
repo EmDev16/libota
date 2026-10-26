@@ -5,6 +5,17 @@ import { useNavigate } from 'react-router-dom';
 import { personAPI } from '../api';
 import { formatDayMonth, localToday } from '../utils/dates';
 import AdminOverview, { GalleryCard } from '../components/AdminOverview';
+import Guide from '../components/Guide';
+
+// Remembered per account in this browser; the site works without it
+const guideKey = (username) => `libota-guide-hidden:${username}`;
+const readGuideHidden = (username) => {
+  try {
+    return localStorage.getItem(guideKey(username)) === '1';
+  } catch {
+    return false;
+  }
+};
 
 const Tile = ({ value, label }) => (
   <div className="stat-tile">
@@ -98,6 +109,27 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [failed, setFailed] = useState(false);
+  // Members without the statistics see the guide straight away, until they hide it
+  const [guideOpen, setGuideOpen] = useState(
+    () => !isAdmin && !user?.showStats && !readGuideHidden(user?.username)
+  );
+
+  const openGuide = () => {
+    setGuideOpen(true);
+    setTimeout(() => {
+      const el = document.getElementById('guide');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
+  const hideGuide = () => {
+    setGuideOpen(false);
+    try {
+      localStorage.setItem(guideKey(user?.username), '1');
+    } catch {
+      /* not saved: the guide shows again next time */
+    }
+  };
 
   const canSeeStats = isAdmin || !!user?.showStats; // admins always, members when an admin allowed it
 
@@ -290,6 +322,12 @@ const Dashboard = () => {
             <p>{t('dashSuggestText')}</p>
           </div>
         )}
+        {!isAdmin && (
+          <div className="dashboard-card" onClick={openGuide}>
+            <h2>{t('guideCard')}</h2>
+            <p>{t('guideCardText')}</p>
+          </div>
+        )}
         {isAdmin && (
           <div className="dashboard-card admin-card" onClick={() => navigate('/admin')}>
             <h2>{t('adminPanel')}</h2>
@@ -297,6 +335,8 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {!isAdmin && guideOpen && <Guide onHide={hideGuide} />}
 
       {canSeeStats && renderStats()}
 
