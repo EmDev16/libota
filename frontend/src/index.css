@@ -1914,3 +1914,38 @@ small { color: var(--muted); }
 .chip-near small { color: inherit; opacity: 0.75; }
 .react-flow__node.flow-focus { filter: drop-shadow(0 0 8px var(--copper)); }
 .react-flow__node.flow-focus > * { outline: 3px solid var(--copper-line); outline-offset: 2px; border-radius: var(--radius); }
+
+/* Guide for members */
+.guide {
+  margin-top: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--copper);
+  border-radius: var(--radius);
+  text-align: left;
+}
+.guide h2 { margin: 0 0 0.25rem; color: var(--navy); }
+.guide-intro { margin: 0 0 1rem; color: var(--muted); }
+.guide-steps { list-style: none; margin: 0; padding: 0; counter-reset: guide; }
+.guide-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+  counter-increment: guide;
+}
+.guide-step-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; overflow-wrap: anywhere; }
+.guide-step-text strong { color: var(--ink); }
+.guide-step-text strong::before { content: counter(guide) '. '; color: var(--copper-dark); }
+.guide-step-text span { color: var(--muted); line-height: 1.4; }
+.guide-step .btn-secondary { width: auto; flex: 0 0 auto; white-space: nowrap; }
+.guide-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-top: 1rem; }
+.guide-footer .btn-primary { width: auto; }
+.guide-footer small { color: var(--muted); }
+@media (max-width: 600px) {
+  .guide { padding: 1rem; }
+  .guide-step { flex-direction: column; align-items: flex-start; }
+}
