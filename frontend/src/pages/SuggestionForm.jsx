@@ -6,6 +6,7 @@ import SuggestionTabs from '../components/SuggestionTabs';
 import { readImageSize } from '../utils/gallery';
 import TagInput from '../components/TagInput';
 import PeopleTagger from '../components/PeopleTagger';
+import CropPhotoInput from '../components/CropPhotoInput';
 
 const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description'];
 const MAX_ITEMS = 10;
@@ -261,11 +262,9 @@ const SuggestionForm = () => {
             {it.type !== 'photo' && (it.type !== 'correction' || it.personId) && (
               <div className="form-group">
                 <label>{t('photo')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={(el) => { fileInputs.current[it.key] = el; }}
-                  onChange={(e) => update(it.key, { photo: e.target.files[0] || null })}
+                <CropPhotoInput
+                  inputRef={(el) => { fileInputs.current[it.key] = el; }}
+                  onChange={(file) => update(it.key, { photo: file })}
                 />
               </div>
             )}

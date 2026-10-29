@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { personAPI } from '../api';
 import { photoUrl } from '../utils/photo';
+import CropPhotoInput from '../components/CropPhotoInput';
 import { useDialog } from '../components/DialogProvider';
 
 const PersonForm = () => {
@@ -305,12 +306,10 @@ const PersonForm = () => {
               </button>
             </div>
           )}
-          <input
-            ref={photoInput}
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              setPhoto(e.target.files[0] || null);
+          <CropPhotoInput
+            inputRef={photoInput}
+            onChange={(file) => {
+              setPhoto(file);
               setRemovePhoto(false);
             }}
           />

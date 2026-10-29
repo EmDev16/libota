@@ -1949,3 +1949,32 @@ small { color: var(--muted); }
   .guide { padding: 1rem; }
   .guide-step { flex-direction: column; align-items: flex-start; }
 }
+
+/* Choosing the part of a person's photo that will be shown */
+.crop-card { max-width: 380px; text-align: center; }
+.crop-title { margin: 0 0 0.25rem; color: var(--navy); }
+.crop-help { margin: 0 0 0.75rem; color: var(--muted); font-size: 0.9rem; }
+.crop-frame {
+  position: relative;
+  margin: 0 auto 0.75rem;
+  overflow: hidden;
+  border: 2px solid var(--copper);
+  border-radius: var(--radius);
+  background: var(--soft);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.crop-frame:active { cursor: grabbing; }
+.crop-frame img { position: absolute; top: 0; left: 0; max-width: none; pointer-events: none; }
+/* thirds, to help to place a face */
+.crop-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.7) calc(33.33% - 0.5px), rgba(255,255,255,0.7) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.7) calc(66.66% - 0.5px), rgba(255,255,255,0.7) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255,255,255,0.7) calc(33.33% - 0.5px), rgba(255,255,255,0.7) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.66% - 0.5px), rgba(255,255,255,0.7) calc(66.66% - 0.5px), rgba(255,255,255,0.7) calc(66.66% + 0.5px), transparent calc(66.66% + 0.5px));
+}
+.crop-zoom { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; color: var(--ink); }
+.crop-zoom input { flex: 1; }
