@@ -9,7 +9,7 @@ const { restoreEntry, RestoreError } = require('../utils/personRestore');
 const router = express.Router();
 
 const RESTORABLE = ['person.create', 'person.update', 'person.delete'];
-const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'gender', 'description', 'photo', 'parents', 'spouses', 'formerSpouses'];
+const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'birthApprox', 'deathApprox', 'deceased', 'gender', 'description', 'photo', 'parents', 'spouses', 'formerSpouses'];
 const LINKS = ['parents', 'spouses', 'formerSpouses'];
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -24,6 +24,7 @@ const diff = (before, after) => {
     if (LINKS.includes(field)) return (value || []).map((id) => names[id] || '?').join(', ');
     if (field === 'birthDate' || field === 'deathDate') return ddmmyyyy(value);
     if (field === 'photo') return value ? 'photo' : '';
+    if (typeof value === 'boolean') return value ? '✓' : '–';
     return value == null ? '' : String(value);
   };
   const changes = [];

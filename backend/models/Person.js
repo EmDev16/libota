@@ -17,6 +17,20 @@ const personSchema = new mongoose.Schema({
   deathDate: {
     type: Date
   },
+  // Only the year of the birth / death date is reliable ("around 1930"): the date is kept as 1 January
+  birthApprox: {
+    type: Boolean,
+    default: false
+  },
+  deathApprox: {
+    type: Boolean,
+    default: false
+  },
+  // Known to be deceased, also when no death date is known (always true when there is a death date)
+  deceased: {
+    type: Boolean,
+    default: false
+  },
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],

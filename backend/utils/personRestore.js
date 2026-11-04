@@ -62,6 +62,9 @@ async function restoreEntry(entry, admin) {
       lastName: snap.lastName,
       birthDate: dateOrNull(snap.birthDate),
       deathDate: dateOrNull(snap.deathDate),
+      birthApprox: snap.birthApprox === true,
+      deathApprox: snap.deathApprox === true,
+      deceased: snap.deceased === true || !!snap.deathDate,
       gender: snap.gender,
       description: snap.description || '',
       photo: null, // the photo file was removed together with the person
@@ -120,6 +123,9 @@ async function restoreEntry(entry, admin) {
     person.lastName = snap.lastName;
     person.birthDate = dateOrNull(snap.birthDate);
     person.deathDate = dateOrNull(snap.deathDate);
+    person.birthApprox = snap.birthApprox === true;
+    person.deathApprox = snap.deathApprox === true;
+    person.deceased = snap.deceased === true || !!snap.deathDate;
     person.gender = snap.gender;
     person.description = snap.description || '';
     person.parents = parents;

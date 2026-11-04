@@ -71,6 +71,81 @@ describe('computeStats', () => {
     assert.equal(stats.averageAge, (stats.oldestLiving.age + stats.youngestLiving.age) / 2);
   });
 
+  it('counts someone marked as deceased even without a death date, and skips approximate days', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1990-10-25' }),
+        person('b', { deceased: true }), // deceased, nothing else known
+        person('c', { birthDate: '1990-10-25', birthApprox: true }) // only the year is known: no birthday
+      ],
+      { today }
+    );
+    assert.equal(stats.living, 2);
+    assert.equal(stats.deceased, 1);
+    assert.deepEqual(stats.birthdays.map((b) => b.id), ['a']);
+    assert.equal(stats.missing.birthDate, 1);
+    assert.equal(stats.missing.deathDate, 1);
+    assert.equal(stats.missing.approximate, 1);
+  });
+
+  it('spreads the living family over age groups', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '2015-01-01' }), // 11
+        person('b', { birthDate: '2000-01-01' }), // 26
+        person('c', { birthDate: '1980-01-01' }), // 46
+        person('d', { birthDate: '1950-01-01' }), // 76
+        person('e', { birthDate: '1951-01-01' }), // 75
+        person('f', {}) // no birth date: not in a group
+      ],
+      { today }
+    );
+    assert.deepEqual(stats.ageGroups, [
+      { key: 'children', count: 1 },
+      { key: 'youngAdults', count: 1 },
+      { key: 'adults', count: 1 },
+      { key: 'seniors', count: 2 }
+    ]);
+  });
+
+  it('counts someone marked as deceased even without a death date, and ignores approximate days', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1990-10-23' }), // birthday tomorrow
+        person('b', { birthDate: '1950-10-23', birthApprox: true }), // only the year is known: no birthday
+        person('c', { deceased: true }), // deceased, nothing else known
+        person('d', { birthDate: '1900-01-01', birthApprox: true, deceased: true })
+      ],
+      { today }
+    );
+    assert.equal(stats.living, 2);
+    assert.equal(stats.deceased, 2);
+    assert.deepEqual(stats.birthdays.map((b) => b.id), ['a']);
+    assert.equal(stats.missing.birthDate, 1); // c
+    assert.equal(stats.missing.deathDate, 2); // c and d: deceased, no death date
+    assert.equal(stats.missing.approximate, 2); // b and d
+  });
+
+  it('spreads the living over age groups', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '2020-01-01' }), // 6
+        person('b', { birthDate: '2000-01-01' }), // 26
+        person('c', { birthDate: '1980-01-01' }), // 46
+        person('d', { birthDate: '1950-01-01' }), // 76
+        person('e', { birthDate: '1940-01-01', deathDate: '2000-01-01' }), // deceased: not counted
+        person('f', {}) // no birth date: not counted
+      ],
+      { today }
+    );
+    assert.deepEqual(stats.ageGroups, [
+      { key: 'children', count: 1 },
+      { key: 'youngAdults', count: 1 },
+      { key: 'adults', count: 1 },
+      { key: 'seniors', count: 1 }
+    ]);
+  });
+
   it('averages the age at death, only for people with both dates', () => {
     const stats = computeStats(
       [

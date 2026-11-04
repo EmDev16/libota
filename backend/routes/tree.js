@@ -9,9 +9,9 @@ const router = express.Router();
 router.get('/complete', auth, async (req, res) => {
   try {
     const people = await Person.find()
-      .populate('parents', 'firstName lastName birthDate deathDate gender photo')
-      .populate('spouses', 'firstName lastName birthDate deathDate gender photo')
-      .populate('children', 'firstName lastName birthDate deathDate gender photo')
+      .populate('parents', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('spouses', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
       .sort({ lastName: 1, firstName: 1 });
 
     res.json(people);
@@ -24,9 +24,9 @@ router.get('/complete', auth, async (req, res) => {
 router.get('/from/:id', auth, async (req, res) => {
   try {
     const rootPerson = await Person.findById(req.params.id)
-      .populate('parents', 'firstName lastName birthDate deathDate gender photo')
-      .populate('spouses', 'firstName lastName birthDate deathDate gender photo')
-      .populate('children', 'firstName lastName birthDate deathDate gender photo');
+      .populate('parents', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('spouses', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo');
 
     if (!rootPerson) {
       return res.status(404).json({ error: 'Person not found' });
@@ -38,9 +38,9 @@ router.get('/from/:id', auth, async (req, res) => {
       visited.add(personId.toString());
 
       const person = await Person.findById(personId)
-        .populate('parents', 'firstName lastName birthDate deathDate gender photo')
-        .populate('spouses', 'firstName lastName birthDate deathDate gender photo')
-        .populate('children', 'firstName lastName birthDate deathDate gender photo');
+        .populate('parents', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+        .populate('spouses', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+        .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo');
 
       if (!person) return [];
 
@@ -58,9 +58,9 @@ router.get('/from/:id', auth, async (req, res) => {
       visited.add(personId.toString());
 
       const person = await Person.findById(personId)
-        .populate('parents', 'firstName lastName birthDate deathDate gender photo')
-        .populate('spouses', 'firstName lastName birthDate deathDate gender photo')
-        .populate('children', 'firstName lastName birthDate deathDate gender photo');
+        .populate('parents', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+        .populate('spouses', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+        .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo');
 
       if (!person) return [];
 
@@ -317,7 +317,7 @@ router.get('/filter/:type', auth, async (req, res) => {
           visited.add(personId.toString());
 
           const person = await Person.findById(personId)
-            .populate('children', 'firstName lastName birthDate deathDate gender photo');
+            .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo');
 
           if (!person) return [];
 

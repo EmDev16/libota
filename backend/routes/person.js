@@ -38,6 +38,9 @@ const uploadPhoto = (req, res, next) => {
 };
 
 // Accepts a JSON string ('["id1","id2"]'), a real array, or a comma-separated string
+// Form fields arrive as text
+const isTrue = (value) => value === true || value === 'true';
+
 const parseIds = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -105,7 +108,7 @@ router.get('/stats', auth, async (req, res) => {
       return res.status(403).json({ error: 'Statistics are not available for this account' });
     }
     const people = await Person.find().select(
-      'firstName lastName birthDate deathDate parents spouses createdAt'
+      'firstName lastName birthDate deathDate birthApprox deathApprox deceased parents spouses createdAt'
     );
     res.json(computeStats(people, { today: req.query.today }));
   } catch (error) {
@@ -118,9 +121,9 @@ router.get('/stats', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const person = await Person.findById(req.params.id)
-      .populate('parents', 'firstName lastName birthDate deathDate gender photo')
-      .populate('spouses', 'firstName lastName birthDate deathDate gender photo')
-      .populate('children', 'firstName lastName birthDate deathDate gender photo')
+      .populate('parents', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('spouses', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
+      .populate('children', 'firstName lastName birthDate deathDate birthApprox deathApprox deceased gender photo')
       .populate('createdBy', 'username');
 
     if (!person) {
@@ -141,6 +144,7 @@ router.post('/', adminAuth, uploadPhoto, async (req, res) => {
 
   try {
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;
+    const { birthApprox, deathApprox, deceased } = req.body;
 
     if (req.file) {
       newPhoto = await savePhoto(req.file);
@@ -152,6 +156,9 @@ router.post('/', adminAuth, uploadPhoto, async (req, res) => {
       lastName,
       birthDate: birthDate ? new Date(birthDate) : null,
       deathDate: deathDate ? new Date(deathDate) : null,
+      birthApprox: !!birthDate && isTrue(birthApprox),
+      deathApprox: !!deathDate && isTrue(deathApprox),
+      deceased: !!deathDate || isTrue(deceased),
       gender: gender ? gender.toLowerCase() : gender,
       description: description || '',
       photo: newPhoto,
@@ -230,6 +237,7 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
     const beforeSnapshot = await personSnapshot(person);
 
     const { firstName, lastName, birthDate, deathDate, gender, description, parents, spouses, formerSpouses } = req.body;
+    const { birthApprox, deathApprox, deceased } = req.body;
 
     if (req.file) {
       newPhoto = await savePhoto(req.file);
@@ -272,6 +280,13 @@ router.put('/:id', adminAuth, uploadPhoto, async (req, res) => {
     person.lastName = lastName || person.lastName;
     person.birthDate = birthDate !== undefined ? (birthDate ? new Date(birthDate) : null) : person.birthDate;
     person.deathDate = deathDate !== undefined ? (deathDate ? new Date(deathDate) : null) : person.deathDate;
+    // "around that year" and "deceased, date unknown" go with the dates above
+    if (birthApprox !== undefined) person.birthApprox = isTrue(birthApprox);
+    if (deathApprox !== undefined) person.deathApprox = isTrue(deathApprox);
+    if (deceased !== undefined) person.deceased = isTrue(deceased);
+    if (!person.birthDate) person.birthApprox = false;
+    if (!person.deathDate) person.deathApprox = false;
+    if (person.deathDate) person.deceased = true;
     person.gender = gender ? gender.toLowerCase() : person.gender;
     person.description = description !== undefined ? description : person.description;
     person.parents = newParents;

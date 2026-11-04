@@ -88,8 +88,10 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
   const now = parseDay(today) || parseDay(new Date().toISOString().slice(0, 10));
   const list = Array.isArray(people) ? people : [];
 
-  const living = list.filter((p) => !p.deathDate);
-  const deceased = list.filter((p) => p.deathDate);
+  // deceased: with a death date, or marked as deceased when nobody knows the date
+  const isDeceased = (p) => !!p.deathDate || p.deceased === true;
+  const living = list.filter((p) => !isDeceased(p));
+  const deceased = list.filter(isDeceased);
 
   // couples: each pair once
   const pairs = new Set();
@@ -131,6 +133,25 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
   const oldestLiving = livingWithBirth.length ? asAge(livingWithBirth[0]) : null;
   const youngestLiving = livingWithBirth.length ? asAge(livingWithBirth[livingWithBirth.length - 1]) : null;
 
+  // how the living family is spread over age groups
+  const AGE_GROUPS = [
+    { key: 'children', from: 0, to: 17 },
+    { key: 'youngAdults', from: 18, to: 34 },
+    { key: 'adults', from: 35, to: 59 },
+    { key: 'seniors', from: 60, to: Infinity }
+  ];
+  const ageGroups = AGE_GROUPS.map(({ key, from, to }) => ({
+    key,
+    count: ages.filter((age) => age >= from && age <= to).length
+  }));
+
+  // what is still unknown about the family
+  const missing = {
+    birthDate: list.filter((p) => !p.birthDate).length,
+    deathDate: deceased.filter((p) => !p.deathDate).length,
+    approximate: list.filter((p) => (p.birthDate && p.birthApprox) || (p.deathDate && p.deathApprox)).length
+  };
+
   // growth: people born per decade, and the running total
   const perDecade = new Map();
   for (const p of list) {
@@ -154,7 +175,7 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
   const birthdays = [];
   for (const p of living) {
     const birth = asDate(p.birthDate);
-    if (!birth || birth > now) continue;
+    if (!birth || birth > now || p.birthApprox) continue; // an approximate date has no real day
     let next = birthdayIn(birth, now.getUTCFullYear());
     if (next < now) next = birthdayIn(birth, now.getUTCFullYear() + 1);
     const daysAway = Math.round((next - now) / DAY);
@@ -177,10 +198,10 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
   for (const p of list) {
     const b = asDate(p.birthDate);
     const d = asDate(p.deathDate);
-    if (b && b.getUTCMonth() === month && b.getUTCDate() === day && b.getUTCFullYear() < now.getUTCFullYear()) {
+    if (b && !p.birthApprox && b.getUTCMonth() === month && b.getUTCDate() === day && b.getUTCFullYear() < now.getUTCFullYear()) {
       onThisDay.push({ id: idOf(p), name: fullName(p), kind: 'born', year: b.getUTCFullYear() });
     }
-    if (d && d.getUTCMonth() === month && d.getUTCDate() === day && d.getUTCFullYear() < now.getUTCFullYear()) {
+    if (d && !p.deathApprox && d.getUTCMonth() === month && d.getUTCDate() === day && d.getUTCFullYear() < now.getUTCFullYear()) {
       onThisDay.push({ id: idOf(p), name: fullName(p), kind: 'died', year: d.getUTCFullYear() });
     }
   }
@@ -203,6 +224,8 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
     largestGeneration: largest,
     averageLifespan,
     averageAge,
+    ageGroups,
+    missing,
     ageSample: ages.length,
     lifespanSample: lifespans.length,
     oldestLiving,
