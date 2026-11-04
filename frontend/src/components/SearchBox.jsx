@@ -3,12 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { personAPI } from '../api';
 import { searchPeople } from '../utils/search';
+import { lifespanText } from '../utils/lifespan';
 
-const years = (p) => {
-  const b = p.birthDate ? new Date(p.birthDate).getUTCFullYear() : '?';
-  const d = p.deathDate ? new Date(p.deathDate).getUTCFullYear() : '';
-  return d ? `${b} – ${d}` : `${b}`;
-};
+const years = (p) => lifespanText(p).replace(' - ', ' – ');
 
 // Search box in the navbar. The list of people is loaded the first time the box is used.
 const SearchBox = () => {

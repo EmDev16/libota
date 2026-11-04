@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { photoUrl } from '../utils/photo';
+import { isDeceased, lifespanText } from '../utils/lifespan';
 import { birthdayBadge } from '../utils/birthdays';
 import { localToday } from '../utils/dates';
 
@@ -12,14 +13,12 @@ const PersonNode = ({ data }) => {
   const genderColor =
     person.gender === 'male' ? '#3498db' : person.gender === 'female' ? '#e74c3c' : '#95a5a6';
 
-  const birthYear = person.birthDate ? new Date(person.birthDate).getFullYear() : '?';
-  const deathYear = person.deathDate ? new Date(person.deathDate).getFullYear() : '';
   const badge = birthdayBadge(person, localToday());
-  const lifespan = deathYear ? `${birthYear} - ${deathYear}` : `b. ${birthYear}`;
+  const lifespan = lifespanText(person, (birth) => `b. ${birth}`);
 
   return (
     <div
-      className={`person-node${person.deathDate ? ' person-node--deceased' : ''}${reference ? ' person-node--reference' : ''}`}
+      className={`person-node${isDeceased(person) ? ' person-node--deceased' : ''}${reference ? ' person-node--reference' : ''}`}
       style={{
         width: 200,
         minHeight: 96,

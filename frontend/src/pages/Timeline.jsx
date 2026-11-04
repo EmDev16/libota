@@ -77,7 +77,7 @@ const Timeline = () => {
                       className="timeline-event"
                       onClick={() => navigate(e.kind === 'photo' ? `/gallery?photo=${e.photoId}` : `/tree?person=${e.personId}`)}
                     >
-                      <span className="timeline-date">{formatDate(e.date)}</span>
+                      <span className="timeline-date">{e.approx ? `c. ${e.year}` : formatDate(e.date)}</span>
                       <span className={`timeline-kind timeline-${e.kind}`}>
                         {e.kind === 'born' ? t('bornWord', 'born') : e.kind === 'died' ? t('diedWord', 'died') : t('photoWord')}
                       </span>

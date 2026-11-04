@@ -27,6 +27,72 @@ export const layoutColumns = (photos, count) => {
   return columns;
 };
 
+// A number between 0 and 1 that is always the same for the same text (to give every photo its own "luck")
+const luckOf = (text) => {
+  let h = 2166136261;
+  for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return ((h >>> 0) % 1000) / 1000;
+};
+
+// How many columns a photo takes. Vertical and square photos take one. Horizontal ones sometimes take
+// two, and wide ones sometimes three, so the gallery looks like a pile of photos and not like a grid.
+export const spanOf = (photo, columns) => {
+  const ratio = aspectOf(photo);
+  const luck = luckOf(photo.id ?? photo.image ?? '');
+  let span = 1;
+  if (ratio >= 1.8 && columns >= 4) span = luck < 0.35 ? 3 : luck < 0.8 ? 2 : 1;
+  else if (ratio >= 1.3) span = luck < 0.6 ? 2 : 1;
+  return Math.min(span, columns);
+};
+
+// Lays the photos out as a collage in a container of `width` pixels with `count` columns.
+// Wide photos cover several columns. For every place the next photo that fits best is taken from the
+// next few (so no holes stay open), which mixes the order a little. Returns
+// { items: [{ photo, left, top, width, height }], height } in pixels.
+export const layoutCollage = (photos, width, count, gap = 10, lookahead = 6) => {
+  const n = Math.max(1, Math.floor(count) || 1);
+  const columnWidth = Math.max(1, (width - gap * (n - 1)) / n);
+  const heights = new Array(n).fill(0);
+  const items = [];
+  const pending = [...(photos || [])];
+  let waited = 0; // how many times the first photo was passed over
+
+  while (pending.length > 0) {
+    let best = null;
+    // a photo that has waited long enough is placed now, wherever it fits best
+    const window = waited >= 8 ? 1 : Math.min(lookahead, pending.length);
+    for (let i = 0; i < window; i += 1) {
+      const photo = pending[i];
+      const wanted = spanOf(photo, n);
+      // a wide photo may also take fewer columns when that fills a low place better
+      for (let span = wanted; span >= 1; span -= 1) {
+        for (let start = 0; start + span <= n; start += 1) {
+          let top = 0;
+          let waste = 0;
+          for (let c = start; c < start + span; c += 1) top = Math.max(top, heights[c]);
+          for (let c = start; c < start + span; c += 1) waste += top - heights[c];
+          // low and tight first; the photos near the front of the list are preferred a little
+          const cost = top + waste * 3 + i * 0.15 * columnWidth + (wanted - span) * 0.4 * columnWidth;
+          if (!best || cost < best.cost - 1e-9) best = { cost, index: i, photo, span, start, top };
+        }
+      }
+    }
+    const boxWidth = best.span * columnWidth + (best.span - 1) * gap;
+    const height = boxWidth / aspectOf(best.photo);
+    items.push({
+      photo: best.photo,
+      left: best.start * (columnWidth + gap),
+      top: best.top,
+      width: boxWidth,
+      height
+    });
+    for (let c = best.start; c < best.start + best.span; c += 1) heights[c] = best.top + height + gap;
+    waited = best.index === 0 ? 0 : waited + 1;
+    pending.splice(best.index, 1);
+  }
+  return { items, height: Math.max(0, Math.max(...heights) - gap) };
+};
+
 // How many columns fit in a container of this width (pixels)
 export const columnCount = (width) => {
   if (width < 520) return 2;

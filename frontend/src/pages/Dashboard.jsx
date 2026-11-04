@@ -45,64 +45,6 @@ const BarList = ({ rows, unit }) => {
   );
 };
 
-// People born per decade (bars) and the total so far (line)
-const GrowthChart = ({ growth, bornLabel, totalLabel }) => {
-  const W = 600;
-  const H = 220;
-  const pad = { left: 36, right: 12, top: 12, bottom: 28 };
-  const innerW = W - pad.left - pad.right;
-  const innerH = H - pad.top - pad.bottom;
-  const maxTotal = Math.max(1, ...growth.map((g) => g.total));
-  const slot = innerW / growth.length;
-  const barW = Math.min(36, slot * 0.6);
-  const x = (i) => pad.left + slot * i + slot / 2;
-  const y = (v) => pad.top + innerH - (v / maxTotal) * innerH;
-  const linePoints = growth.map((g, i) => `${x(i)},${y(g.total)}`).join(' ');
-  const every = Math.ceil(growth.length / 8); // not too many decade labels
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="growth-chart"
-      role="img"
-      aria-label={`${bornLabel} / ${totalLabel}`}
-    >
-      {[0, 0.5, 1].map((f) => (
-        <g key={f}>
-          <line x1={pad.left} x2={W - pad.right} y1={y(maxTotal * f)} y2={y(maxTotal * f)} className="chart-grid" />
-          <text x={pad.left - 6} y={y(maxTotal * f) + 4} textAnchor="end" className="chart-text">
-            {Math.round(maxTotal * f)}
-          </text>
-        </g>
-      ))}
-      {growth.map((g, i) => (
-        <g key={g.decade}>
-          <rect
-            x={x(i) - barW / 2}
-            y={y(g.born)}
-            width={barW}
-            height={Math.max(0, pad.top + innerH - y(g.born))}
-            className="chart-bar"
-          >
-            <title>{`${g.decade}s: ${g.born}`}</title>
-          </rect>
-          {i % every === 0 && (
-            <text x={x(i)} y={H - 8} textAnchor="middle" className="chart-text">
-              {g.decade}
-            </text>
-          )}
-        </g>
-      ))}
-      <polyline points={linePoints} className="chart-line" fill="none" />
-      {growth.map((g, i) => (
-        <circle key={g.decade} cx={x(i)} cy={y(g.total)} r="3.5" className="chart-dot">
-          <title>{`${g.decade}s: ${g.total}`}</title>
-        </circle>
-      ))}
-    </svg>
-  );
-};
-
 const Dashboard = () => {
   const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
@@ -155,8 +97,6 @@ const Dashboard = () => {
     if (failed) return <div className="no-data">{t('statsFailed', 'The statistics could not be loaded.')}</div>;
     if (!stats) return <div className="loading">{t('loading')}</div>;
     if (stats.total === 0) return <div className="no-data">{t('noData')}</div>;
-
-    const hasChartData = stats.growth.length > 0;
 
     return (
       <>
@@ -249,18 +189,30 @@ const Dashboard = () => {
             </section>
           )}
 
-          {hasChartData && (
-            <section className="insight-card insight-wide">
-              <h2>{t('familyGrowth', 'Family growth')}</h2>
-              <GrowthChart
-                growth={stats.growth}
-                bornLabel={t('bornPerDecade', 'Born per decade')}
-                totalLabel={t('totalSoFar', 'Total so far')}
+          {stats.ageGroups && stats.ageGroups.some((g) => g.count > 0) && (
+            <section className="insight-card">
+              <h2>{t('dashAgeGroups')}</h2>
+              <BarList
+                rows={stats.ageGroups.map((g) => ({
+                  label: t(`age${g.key.charAt(0).toUpperCase()}${g.key.slice(1)}`),
+                  value: g.count
+                }))}
               />
-              <div className="chart-legend">
-                <span><i className="legend-bar" /> {t('bornPerDecade', 'Born per decade')}</span>
-                <span><i className="legend-line" /> {t('totalSoFar', 'Total so far')}</span>
-              </div>
+            </section>
+          )}
+
+          {stats.missing && (
+            <section className="insight-card">
+              <h2>{t('dashMissing')}</h2>
+              {stats.missing.birthDate + stats.missing.deathDate + stats.missing.approximate === 0 ? (
+                <p className="muted">{t('missingNone')}</p>
+              ) : (
+                <ul className="plain-list">
+                  {stats.missing.birthDate > 0 && <li>{t('missingBirth', { n: stats.missing.birthDate })}</li>}
+                  {stats.missing.deathDate > 0 && <li>{t('missingDeath', { n: stats.missing.deathDate })}</li>}
+                  {stats.missing.approximate > 0 && <li>{t('missingApprox', { n: stats.missing.approximate })}</li>}
+                </ul>
+              )}
             </section>
           )}
 

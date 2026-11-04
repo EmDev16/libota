@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { thumbUrl, aspectOf, layoutColumns, columnCount, parseTags, normTag, levenshtein, suggestOptions } from '../../src/utils/gallery';
+import { thumbUrl, aspectOf, spanOf, layoutCollage, layoutColumns, columnCount, parseTags, normTag, levenshtein, suggestOptions } from '../../src/utils/gallery';
 
 const photo = (id, width, height) => ({ id, width, height });
 
@@ -86,5 +86,75 @@ describe('tag helpers', () => {
 
   it('leaves out what is already chosen', () => {
     expect(suggestOptions('', ['a', 'b'], ['A']).matches).toEqual(['b']);
+  });
+});
+
+describe('spanOf', () => {
+  it('gives vertical and square photos one column', () => {
+    expect(spanOf(photo('a', 800, 1200), 4)).toBe(1);
+    expect(spanOf(photo('b', 1000, 1000), 4)).toBe(1);
+    expect(spanOf(photo('c'), 4)).toBe(1); // size unknown
+  });
+
+  it('lets horizontal photos take two or three columns, never more than there are', () => {
+    const spans = new Set();
+    for (let i = 0; i < 200; i += 1) spans.add(spanOf(photo(`wide-${i}`, 2000, 1000), 4));
+    expect([...spans].sort()).toEqual([1, 2, 3]);
+    for (let i = 0; i < 50; i += 1) expect(spanOf(photo(`w-${i}`, 3000, 1000), 2)).toBeLessThanOrEqual(2);
+  });
+
+  it('is always the same for the same photo', () => {
+    expect(spanOf(photo('same', 2000, 1000), 4)).toBe(spanOf(photo('same', 2000, 1000), 4));
+  });
+});
+
+describe('layoutCollage', () => {
+  const mixed = Array.from({ length: 60 }, (_, i) =>
+    photo(`p${i}`, [1600, 1000, 1200, 2400][i % 4], [1000, 1500, 1200, 1000][i % 4])
+  );
+
+  it('places every photo once, inside the container, without overlap', () => {
+    const { items, height } = layoutCollage(mixed, 1000, 4);
+    expect(items).toHaveLength(60);
+    expect(new Set(items.map((x) => x.photo.id)).size).toBe(60);
+    items.forEach((x) => {
+      expect(x.left).toBeGreaterThanOrEqual(0);
+      expect(x.left + x.width).toBeLessThanOrEqual(1000 + 1e-6);
+      expect(x.top + x.height).toBeLessThanOrEqual(height + 1e-6);
+    });
+    for (let i = 0; i < items.length; i += 1) {
+      for (let j = i + 1; j < items.length; j += 1) {
+        const a = items[i];
+        const b = items[j];
+        const apart =
+          a.left + a.width <= b.left + 1e-6 || b.left + b.width <= a.left + 1e-6 ||
+          a.top + a.height <= b.top + 1e-6 || b.top + b.height <= a.top + 1e-6;
+        expect(apart).toBe(true);
+      }
+    }
+  });
+
+  it('keeps the shape of every photo', () => {
+    layoutCollage(mixed, 1000, 4).items.forEach((x) => {
+      expect(x.width / x.height).toBeCloseTo(aspectOf(x.photo), 5);
+    });
+  });
+
+  it('uses wide boxes for some horizontal photos', () => {
+    const { items } = layoutCollage(mixed, 1000, 4);
+    const columnWidth = (1000 - 30) / 4;
+    expect(items.some((x) => x.width > columnWidth * 1.5)).toBe(true);
+    expect(items.some((x) => x.width > columnWidth * 2.5)).toBe(true);
+  });
+
+  it('leaves little empty space', () => {
+    const { items, height } = layoutCollage(mixed, 1000, 4);
+    const used = items.reduce((sum, x) => sum + x.width * x.height, 0);
+    expect(used / (1000 * height)).toBeGreaterThan(0.85);
+  });
+
+  it('copes with no photos, one photo and a bad column count', () => {
+    expect(layoutCollage([], 800, 3)).toEqual({ items: [], height: 0 });
+    expect(layoutCollage([photo('a', 100, 100)], 800, 0).items).toHaveLength(1);
   });
 });

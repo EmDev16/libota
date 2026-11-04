@@ -5,7 +5,8 @@ import { galleryAPI, personAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { formatDate } from '../utils/dates';
 import { photoUrl } from '../utils/photo';
-import { thumbUrl, layoutColumns, columnCount } from '../utils/gallery';
+import { thumbUrl, layoutCollage, columnCount } from '../utils/gallery';
+import { mixPhotos } from '../utils/mix';
 import TagInput from '../components/TagInput';
 import { useDialog } from '../components/DialogProvider';
 import PeopleTagger from '../components/PeopleTagger';
@@ -304,6 +305,9 @@ const Gallery = () => {
   const [year, setYear] = useState('');
   const [tag, setTag] = useState('');
   const [query, setQuery] = useState('');
+  // how the photos are ordered: mixed (a different order every visit), newest first, or oldest first
+  const [order, setOrder] = useState('mixed');
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [person, setPerson] = useState(() => (params.get('person') ? `id:${params.get('person')}` : ''));
   const [openId, setOpenId] = useState(() => params.get('photo') || null);
   const [width, setWidth] = useState(1000);
@@ -364,7 +368,7 @@ const Gallery = () => {
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [photos]);
 
-  const filtered = useMemo(() => {
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (photos || []).filter(
       (p) =>
@@ -376,7 +380,19 @@ const Gallery = () => {
     );
   }, [photos, album, year, tag, person, query]);
 
-  const columns = useMemo(() => layoutColumns(filtered, columnCount(width)), [filtered, width]);
+  // the server sends the newest first
+  const filtered = useMemo(() => {
+    if (order === 'oldest') return [...matching].reverse();
+    if (order === 'mixed') return mixPhotos(matching, seed);
+    return matching;
+  }, [matching, order, seed]);
+
+  // a collage: wide photos take two or three columns
+  const collage = useMemo(
+    () => layoutCollage(filtered, width, columnCount(width), width < 600 ? 6 : 10),
+    [filtered, width]
+  );
+  const columnPx = Math.max(1, (width - (width < 600 ? 6 : 10) * (columnCount(width) - 1)) / columnCount(width));
 
   const openIndex = filtered.findIndex((p) => p.id === openId);
   const neighborsOf = useMemo(
@@ -423,6 +439,16 @@ const Gallery = () => {
           </select>
         )}
         <input type="search" value={query} placeholder={t('gallerySearch')} onChange={(e) => setQuery(e.target.value)} />
+        <select value={order} onChange={(e) => setOrder(e.target.value)} aria-label={t('galleryOrder')}>
+          <option value="mixed">{t('galleryOrderMixed')}</option>
+          <option value="newest">{t('galleryOrderNewest')}</option>
+          <option value="oldest">{t('galleryOrderOldest')}</option>
+        </select>
+        {order === 'mixed' && (
+          <button type="button" className="btn-secondary" onClick={() => setSeed(Math.floor(Math.random() * 2 ** 31))}>
+            {t('galleryShuffle')}
+          </button>
+        )}
       </div>
 
       {tags.length > 0 && (
@@ -451,21 +477,22 @@ const Gallery = () => {
       {filtered.length === 0 ? (
         <div className="no-data">{t('galleryEmpty')}</div>
       ) : (
-        <div className="gallery-columns" ref={gridRef}>
-          {columns.map((col, i) => (
-            <div className="gallery-col" key={i}>
-              {col.map((p) => (
-                <button type="button" className="gallery-item" key={p.id} onClick={() => setOpenId(p.id)}>
-                  <img
-                    src={thumbUrl(photoUrl(p.image), 600)}
-                    alt={p.caption || ''}
-                    loading="lazy"
-                    decoding="async"
-                    style={p.width && p.height ? { aspectRatio: `${p.width} / ${p.height}` } : undefined}
-                  />
-                </button>
-              ))}
-            </div>
+        <div className="gallery-collage" ref={gridRef} style={{ height: collage.height }}>
+          {collage.items.map(({ photo: p, left, top, width: w, height: h }) => (
+            <button
+              type="button"
+              className="gallery-item"
+              key={p.id}
+              onClick={() => setOpenId(p.id)}
+              style={{ left, top, width: w, height: h }}
+            >
+              <img
+                src={thumbUrl(photoUrl(p.image), w > columnPx * 2.5 ? 1800 : w > columnPx * 1.5 ? 1200 : 600)}
+                alt={p.caption || ''}
+                loading="lazy"
+                decoding="async"
+              />
+            </button>
           ))}
         </div>
       )}

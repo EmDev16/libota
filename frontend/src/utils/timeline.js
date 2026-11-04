@@ -25,7 +25,7 @@ export const buildTimeline = (people, kind = 'all', photos = []) => {
     const death = toDate(p.deathDate);
 
     if (birth && kind !== 'died') {
-      events.push({ key: `${p._id}-born`, personId: p._id, name, kind: 'born', date: birth, year: birth.getUTCFullYear() });
+      events.push({ key: `${p._id}-born`, personId: p._id, name, kind: 'born', date: birth, year: birth.getUTCFullYear(), approx: p.birthApprox === true });
     }
     if (death && kind !== 'born') {
       events.push({
@@ -35,6 +35,7 @@ export const buildTimeline = (people, kind = 'all', photos = []) => {
         kind: 'died',
         date: death,
         year: death.getUTCFullYear(),
+        approx: p.deathApprox === true,
         age: birth && death >= birth ? yearsBetween(birth, death) : null
       });
     }

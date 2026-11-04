@@ -17,6 +17,11 @@ const PersonForm = () => {
     lastName: '',
     birthDate: '',
     deathDate: '',
+    // How well the dates are known: an exact date, only the year ("around"), or not at all
+    birthMode: 'exact',
+    birthYear: '',
+    deathMode: 'living', // living, exact, approx, or unknown (deceased, date unknown)
+    deathYear: '',
     gender: 'male',
     description: '',
     parents: [],
@@ -79,8 +84,12 @@ const PersonForm = () => {
       setFormData({
         firstName: person.firstName,
         lastName: person.lastName,
-        birthDate: person.birthDate ? person.birthDate.split('T')[0] : '',
-        deathDate: person.deathDate ? person.deathDate.split('T')[0] : '',
+        birthDate: person.birthDate && !person.birthApprox ? person.birthDate.split('T')[0] : '',
+        deathDate: person.deathDate && !person.deathApprox ? person.deathDate.split('T')[0] : '',
+        birthMode: !person.birthDate ? 'unknown' : person.birthApprox ? 'approx' : 'exact',
+        birthYear: person.birthDate && person.birthApprox ? person.birthDate.slice(0, 4) : '',
+        deathMode: person.deathDate ? (person.deathApprox ? 'approx' : 'exact') : person.deceased ? 'unknown' : 'living',
+        deathYear: person.deathDate && person.deathApprox ? person.deathDate.slice(0, 4) : '',
         gender: person.gender,
         description: person.description,
         parents: person.parents?.map(p => p._id) || [],
@@ -99,8 +108,16 @@ const PersonForm = () => {
     const data = new FormData();
     data.append('firstName', formData.firstName);
     data.append('lastName', formData.lastName);
-    data.append('birthDate', formData.birthDate);
-    data.append('deathDate', formData.deathDate);
+    // an approximate date is kept as 1 January of that year
+    const birthDate =
+      formData.birthMode === 'exact' ? formData.birthDate : formData.birthMode === 'approx' && formData.birthYear ? `${formData.birthYear}-01-01` : '';
+    const deathDate =
+      formData.deathMode === 'exact' ? formData.deathDate : formData.deathMode === 'approx' && formData.deathYear ? `${formData.deathYear}-01-01` : '';
+    data.append('birthDate', birthDate);
+    data.append('deathDate', deathDate);
+    data.append('birthApprox', String(formData.birthMode === 'approx' && !!birthDate));
+    data.append('deathApprox', String(formData.deathMode === 'approx' && !!deathDate));
+    data.append('deceased', String(formData.deathMode !== 'living'));
     data.append('gender', formData.gender);
     data.append('description', formData.description);
     data.append('parents', JSON.stringify(formData.parents));
@@ -267,21 +284,48 @@ const PersonForm = () => {
         </div>
         <div className="form-group">
           <label>{t('birthDate')}</label>
-          <input
-            type="date"
-            name="birthDate"
-            value={formData.birthDate}
-            onChange={handleChange}
-          />
+          <select name="birthMode" value={formData.birthMode} onChange={handleChange}>
+            <option value="exact">{t('dateModeExact')}</option>
+            <option value="approx">{t('dateModeApprox')}</option>
+            <option value="unknown">{t('dateModeUnknown')}</option>
+          </select>
+          {formData.birthMode === 'exact' && (
+            <input type="date" name="birthDate" value={formData.birthDate} onChange={handleChange} />
+          )}
+          {formData.birthMode === 'approx' && (
+            <input
+              type="number"
+              name="birthYear"
+              min="1000"
+              max="2200"
+              placeholder={t('dateYear')}
+              value={formData.birthYear}
+              onChange={handleChange}
+            />
+          )}
         </div>
         <div className="form-group">
           <label>{t('deathDate')}</label>
-          <input
-            type="date"
-            name="deathDate"
-            value={formData.deathDate}
-            onChange={handleChange}
-          />
+          <select name="deathMode" value={formData.deathMode} onChange={handleChange}>
+            <option value="living">{t('deathModeLiving')}</option>
+            <option value="exact">{t('dateModeExact')}</option>
+            <option value="approx">{t('dateModeApprox')}</option>
+            <option value="unknown">{t('deathModeUnknown')}</option>
+          </select>
+          {formData.deathMode === 'exact' && (
+            <input type="date" name="deathDate" value={formData.deathDate} onChange={handleChange} />
+          )}
+          {formData.deathMode === 'approx' && (
+            <input
+              type="number"
+              name="deathYear"
+              min="1000"
+              max="2200"
+              placeholder={t('dateYear')}
+              value={formData.deathYear}
+              onChange={handleChange}
+            />
+          )}
         </div>
         <div className="form-group">
           <label>{t('gender')} *</label>

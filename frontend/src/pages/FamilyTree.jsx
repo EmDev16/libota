@@ -21,7 +21,8 @@ import ExportPdfModal from '../components/ExportPdfModal';
 import { normalizeRelationships, MODERN_SIZES } from '../utils/treeLayout';
 import { calculateGraphLayoutFor } from '../utils/graphLayout';
 import { familyOptions, oldestOfFamily } from '../utils/families';
-import { formatDate, localToday } from '../utils/dates';
+import { localToday } from '../utils/dates';
+import { dateText, lifespanText } from '../utils/lifespan';
 import { birthdayBadge } from '../utils/birthdays';
 
 const nodeTypes = {
@@ -35,8 +36,6 @@ const edgeTypes = { busEdge: BusEdge };
 const GENDER_COLORS = { male: '#3498db', female: '#e74c3c', other: '#95a5a6' };
 
 const isPhone = typeof window !== 'undefined' && window.innerWidth < 600;
-
-const getYear = (date) => (date ? new Date(date).getFullYear() : null);
 
 // Single person card (used in the tree and in the unlinked section)
 const PersonCard = ({ person, onClick, style, focused }) => {
@@ -58,8 +57,7 @@ const PersonCard = ({ person, onClick, style, focused }) => {
     <div className="pedigree-info">
       <h4>{person.firstName} {person.lastName}</h4>
       <p className="pedigree-lifespan">
-        {getYear(person.birthDate) || '?'}
-        {person.deathDate ? ` - ${getYear(person.deathDate)}` : ''}
+        {lifespanText(person)}
       </p>
     </div>
   </div>
@@ -68,7 +66,7 @@ const PersonCard = ({ person, onClick, style, focused }) => {
 
 // The traditional view: the same positions as the modern view (every person once, parents above,
 // partners side by side), drawn as cards with square lines
-const TraditionalTree = ({ layout, onPersonClick, focusId }) => {
+const TraditionalTree = ({ layout, onPersonClick, focusId, traceId, onTrace }) => {
   const PAD = 40;
   const { nodes, geometry, size } = layout;
   const { NODE_W, NODE_H, ROW_GAP } = MODERN_SIZES;
@@ -87,12 +85,18 @@ const TraditionalTree = ({ layout, onPersonClick, focusId }) => {
           <g transform={`translate(${PAD},${PAD})`} fill="none" strokeLinejoin="round">
             {geometry.children.map((line, i) => {
               const midY = line.busY ?? line.to.y - ROW_GAP / 2;
+              const traced = !traceId || line.childId === traceId || (line.parentIds || []).includes(traceId);
               return (
                 <path
                   key={i}
-                  d={`M ${line.from.x} ${line.from.y} V ${midY} H ${line.to.x} V ${line.to.y}`}
+                  opacity={traced ? 1 : 0.12}
+                  d={
+                    line.route
+                      ? `M ${line.route.map((pt) => `${pt.x} ${pt.y}`).join(' L ')}`
+                      : `M ${line.from.x} ${line.from.y} V ${midY} H ${line.to.x} V ${line.to.y}`
+                  }
                   stroke={line.color}
-                  strokeWidth="2"
+                  strokeWidth={traceId && traced ? 4 : 2}
                 />
               );
             })}
@@ -146,6 +150,8 @@ const TraditionalTree = ({ layout, onPersonClick, focusId }) => {
             <div
               key={node.id}
               id={`person-${node.data.person._id}`}
+              onMouseEnter={() => onTrace && onTrace(node.data.person._id)}
+              onMouseLeave={() => onTrace && onTrace(null)}
               style={{
                 position: 'absolute',
                 left: node.position.x + PAD,
@@ -182,6 +188,11 @@ const FamilyTree = () => {
   const [fitKey, setFitKey] = useState(0); // bump to re-fit the modern view
   const [family, setFamily] = useState(''); // '' = the whole tree, or "word:mbala"
   const [focusId, setFocusId] = useState(null); // the person the view is centred on
+  // Whose lines are highlighted (to the parents and to the children): the card under the mouse, or the
+  // last card that was opened (on a phone there is no mouse)
+  const [hoverId, setHoverId] = useState(null);
+  const [tracedId, setTracedId] = useState(null);
+  const traceId = hoverId || tracedId;
   const [showPdfModal, setShowPdfModal] = useState(false);
   const transform = useRef(null);
   const flowInstance = useRef(null);
@@ -269,6 +280,7 @@ const FamilyTree = () => {
   };
 
   const openPerson = (person) => {
+    setTracedId(person._id);
     setSelectedPerson(person);
     setShowModal(true);
   };
@@ -296,7 +308,10 @@ const FamilyTree = () => {
           <select
             id="family-select"
             value={family}
-            onChange={(e) => setFamily(e.target.value)}
+            onChange={(e) => {
+              setFamily(e.target.value);
+              setTracedId(null);
+            }}
             className="root-select"
           >
             <option value="">{t('entireTree')}</option>
@@ -312,6 +327,12 @@ const FamilyTree = () => {
       {people.length > 0 && (
         <button className="btn-secondary" onClick={() => setShowPdfModal(true)}>
           {t('exportPdf', 'Export PDF')}
+        </button>
+      )}
+
+      {tracedId && (
+        <button className="btn-secondary" onClick={() => setTracedId(null)}>
+          {t('traceClear')}
         </button>
       )}
 
@@ -361,7 +382,25 @@ const FamilyTree = () => {
                 ? { ...n, className: 'flow-focus' }
                 : n
             )}
-            edges={edges}
+            edges={
+              traceId
+                ? edges.map((edge) => {
+                    if (!edge.data || !edge.data.childId) return edge;
+                    const traced = edge.data.childId === traceId || edge.data.parentIds.includes(traceId);
+                    return {
+                      ...edge,
+                      zIndex: traced ? 10 : 0,
+                      style: {
+                        ...edge.style,
+                        opacity: traced ? 1 : 0.12,
+                        strokeWidth: traced ? 4 : edge.style.strokeWidth
+                      }
+                    };
+                  })
+                : edges
+            }
+            onNodeMouseEnter={(event, node) => node.type === 'personNode' && setHoverId(node.id)}
+            onNodeMouseLeave={() => setHoverId(null)}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={(event, node) => {
@@ -403,7 +442,13 @@ const FamilyTree = () => {
           maxScale={3}
         >
           <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }}>
-            <TraditionalTree layout={layout} onPersonClick={openPerson} focusId={focusId} />
+            <TraditionalTree
+              layout={layout}
+              onPersonClick={openPerson}
+              focusId={focusId}
+              traceId={traceId}
+              onTrace={setHoverId}
+            />
           </TransformComponent>
         </TransformWrapper>
       )}
@@ -432,8 +477,15 @@ const FamilyTree = () => {
               )}
               <h2>{selectedPerson.firstName} {selectedPerson.lastName}</h2>
               <div className="modal-info">
-                <p><strong>{t('birthDate')}:</strong> {formatDate(selectedPerson.birthDate, '-')}</p>
-                <p><strong>{t('deathDate')}:</strong> {formatDate(selectedPerson.deathDate, '-')}</p>
+                <p><strong>{t('birthDate')}:</strong> {dateText(selectedPerson.birthDate, selectedPerson.birthApprox)}</p>
+                <p>
+                  <strong>{t('deathDate')}:</strong>{' '}
+                  {selectedPerson.deathDate
+                    ? dateText(selectedPerson.deathDate, selectedPerson.deathApprox)
+                    : selectedPerson.deceased
+                      ? t('deceasedUnknownDate')
+                      : '-'}
+                </p>
                 <p><strong>{t('gender')}:</strong> {t(selectedPerson.gender)}</p>
                 {selectedPerson.description && (
                   <p><strong>{t('description')}:</strong> {selectedPerson.description}</p>

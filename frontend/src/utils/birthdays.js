@@ -21,7 +21,7 @@ const birthdayIn = (birth, year) => {
 
 // today: 'yyyy-mm-dd' (the viewer's own date)
 export const birthdayInfo = (person, today) => {
-  if (!person || person.deathDate || !person.birthDate) return null;
+  if (!person || person.deathDate || person.deceased === true || !person.birthDate || person.birthApprox) return null;
   const birth = new Date(person.birthDate);
   const now = new Date(`${today}T00:00:00Z`);
   if (Number.isNaN(birth.getTime()) || Number.isNaN(now.getTime()) || birth > now) return null;

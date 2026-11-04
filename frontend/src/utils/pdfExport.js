@@ -9,6 +9,7 @@
  *   branches  one page per branch (every child of the top families), plus one page for the rest
  */
 import { photoUrl } from './photo';
+import { isDeceased, lifespanText } from './lifespan';
 import {
   calculateTraditionalLayout,
   calculateModernLayout,
@@ -352,10 +353,16 @@ function drawLayout(doc, layout, view, photos, cull) {
       const sy = isDot ? a.position.y + DOT : a.position.y + H;
       const tx = b.type === 'unionNode' ? b.position.x + DOT / 2 : b.position.x + W / 2;
       const ty = b.position.y;
-      const midY = e.data?.busY ?? sy + (ty - sy) / 2;
-      segment(sx, sy, sx, midY);
-      if (sx !== tx) segment(sx, midY, tx, midY);
-      segment(tx, midY, tx, ty);
+      const route = e.data?.route;
+      if (route && route.length > 1) {
+        // goes around cards: the layout gives every corner
+        for (let i = 1; i < route.length; i++) segment(route[i - 1].x, route[i - 1].y, route[i].x, route[i].y);
+      } else {
+        const midY = e.data?.busY ?? sy + (ty - sy) / 2;
+        segment(sx, sy, sx, midY);
+        if (sx !== tx) segment(sx, midY, tx, midY);
+        segment(tx, midY, tx, ty);
+      }
     }
     if (e.style.strokeDasharray) doc.setLineDashPattern([], 0);
   });
@@ -386,7 +393,7 @@ function drawLayout(doc, layout, view, photos, cull) {
     const p = n.data.person;
 
     // Plain card with a thin beige border and a copper bar on the left
-    doc.setFillColor(p.deathDate ? CARD_FILL_DECEASED : CARD_FILL);
+    doc.setFillColor(isDeceased(p) ? CARD_FILL_DECEASED : CARD_FILL);
     doc.setDrawColor(CARD_LINE);
     doc.setLineWidth(Math.max(1 * s, 0.5));
     doc.roundedRect(px(x), py(y), W * s, H * s, 3 * s, 3 * s, 'FD');
@@ -413,9 +420,7 @@ function drawLayout(doc, layout, view, photos, cull) {
     const nameLines = doc.splitTextToSize(fullName(p), textW * s).slice(0, 2);
     nameLines[nameLines.length - 1] = fitText(doc, nameLines[nameLines.length - 1], textW * s);
 
-    const birth = p.birthDate ? new Date(p.birthDate).getFullYear() : '?';
-    const death = p.deathDate ? new Date(p.deathDate).getFullYear() : '';
-    const lifespan = death ? `${birth} - ${death}` : `${birth} -`;
+    const lifespan = lifespanText(p, (birth) => `${birth} -`);
 
     const blockH = nameLines.length * nameSize * 1.2 + lifeSize * 1.4;
     let ty = py(y) + (H * s - blockH) / 2 + nameSize * 0.95;

@@ -32,7 +32,29 @@ export const LabelNode = ({ data }) => (
 // The line from a family down to one child: straight down from the parents, along the family's
 // own horizontal line (data.busY, a height chosen by the layout so that families do not
 // overlap), then down into the child. The corners are rounded.
+// A line that has to go around cards comes with its whole route (a list of corner points)
+const routedPath = (points, maxRadius = 8) => {
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const here = points[i];
+    const next = points[i + 1];
+    if (!next) {
+      path += ` L ${here.x} ${here.y}`;
+      continue;
+    }
+    const inLen = Math.abs(here.x - prev.x) + Math.abs(here.y - prev.y);
+    const outLen = Math.abs(next.x - here.x) + Math.abs(next.y - here.y);
+    const r = Math.min(maxRadius, inLen / 2, outLen / 2);
+    const back = { x: here.x - Math.sign(here.x - prev.x) * r, y: here.y - Math.sign(here.y - prev.y) * r };
+    const forward = { x: here.x + Math.sign(next.x - here.x) * r, y: here.y + Math.sign(next.y - here.y) * r };
+    path += ` L ${back.x} ${back.y} Q ${here.x} ${here.y} ${forward.x} ${forward.y}`;
+  }
+  return path;
+};
+
 export const BusEdge = ({ sourceX, sourceY, targetX, targetY, data, style }) => {
+  if (data?.route && data.route.length > 1) return <BaseEdge path={routedPath(data.route)} style={style} />;
   const busY = data?.busY ?? (sourceY + targetY) / 2;
   const dx = targetX - sourceX;
 

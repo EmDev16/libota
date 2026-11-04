@@ -32,6 +32,9 @@ const BUS_START = 26;
 const BUS_STEP = 14;
 const BUS_END = 22;
 const BUS_MARGIN = 12; // two buses closer than this (sideways) get different heights
+// A family with more children than this is split over several lines (rows), each line of about equal size
+const WRAP_AT = 8;
+const TRUNK_CLEAR = 14; // free space around a vertical line that passes between cards
 
 const birthTime = p => (p.birthDate ? new Date(p.birthDate).getTime() : Infinity);
 const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
@@ -162,21 +165,43 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     sourcesOf.set(child._id, sources);
   });
 
+  // A big group of children is split into lines: the first line sits right below the parents, the
+  // next one a row lower, and so on. (Only for a couple's children, or the children of one parent.)
+  const lineOf = new Map(); // child id -> 0 for the first line, 1 for the second, ...
+  const splitInLines = ids => {
+    if (ids.length <= WRAP_AT) return;
+    const sorted = [...ids].sort((x, y) => birthTime(byId.get(x)) - birthTime(byId.get(y)));
+    const lines = Math.ceil(sorted.length / WRAP_AT);
+    const perLine = Math.ceil(sorted.length / lines);
+    sorted.forEach((id, i) => lineOf.set(id, Math.floor(i / perLine)));
+  };
+  unions.forEach(u => splitInLines(u.kids));
+  const loneKids = new Map(); // parent id -> children who have only that one parent
+  sourcesOf.forEach((sources, childId) => {
+    if (sources.length !== 1 || !sources[0].person) return;
+    if (!loneKids.has(sources[0].person)) loneKids.set(sources[0].person, []);
+    loneKids.get(sources[0].person).push(childId);
+  });
+  loneKids.forEach(splitInLines);
+
   // -------------------------------------------------------------------------
   // 3. Generations: partners share a row, children are below all of their parents
   // -------------------------------------------------------------------------
-  const unitParents = unit =>
-    unit.members.flatMap(id => parentsOf(id)).map(pid => unitOf.get(pid)).filter(u => u && u !== unit);
   const hasParents = unit => unit.members.some(id => parentsOf(id).length > 0);
 
   for (let round = 0, changed = true; changed && round < people.length + 5; round++) {
     changed = false;
     units.forEach(unit => {
-      unitParents(unit).forEach(parentUnit => {
-        if (parentUnit.level + 1 > unit.level) {
-          unit.level = parentUnit.level + 1;
-          changed = true;
-        }
+      unit.members.forEach(id => {
+        parentsOf(id).forEach(pid => {
+          const parentUnit = unitOf.get(pid);
+          if (!parentUnit || parentUnit === unit) return;
+          const needed = parentUnit.level + 1 + (lineOf.get(id) || 0);
+          if (needed > unit.level) {
+            unit.level = needed;
+            changed = true;
+          }
+        });
       });
     });
   }
@@ -584,6 +609,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
         buses.set(key, {
           key,
           color: colorOf.get(key),
+          parents: source.union ? [source.union.a, source.union.b] : [source.person],
           // Lines leave a union dot from its bottom
           from: source.union ? { x: from.x, y: from.y + M.DOT / 2 } : from,
           level: source.union ? source.union.unit.level : unitOf.get(source.person).level,
@@ -594,33 +620,128 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     });
   });
 
-  const byLevel = new Map();
+  // The space the cards take on every row, to find a free way down between them
+  const spansOnRow = Array.from({ length: levelCount }, () => []);
+  units.forEach(unit => spansOnRow[unit.level].push([unit.left, unit.left + unit.width]));
+
+  // An x where a vertical line can go down through rows fromLevel..toLevel without touching a card,
+  // as close as possible to `preferred`
+  const freeColumn = (fromLevel, toLevel, preferred) => {
+    const spans = [];
+    for (let level = fromLevel; level <= toLevel; level++) {
+      (spansOnRow[level] || []).forEach(([a, b]) => spans.push([a - TRUNK_CLEAR, b + TRUNK_CLEAR]));
+    }
+    if (spans.length === 0) return preferred;
+    spans.sort((p, q) => p[0] - q[0]);
+    const merged = [];
+    spans.forEach(span => {
+      const last = merged[merged.length - 1];
+      if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+      else merged.push([...span]);
+    });
+    if (!merged.some(([a, b]) => preferred > a && preferred < b)) return preferred;
+    const candidates = [];
+    if (merged[0][0] - 4 >= 8) candidates.push(merged[0][0] - 4);
+    for (let i = 0; i + 1 < merged.length; i++) candidates.push((merged[i][1] + merged[i + 1][0]) / 2);
+    candidates.push(merged[merged.length - 1][1] + 4);
+    return candidates.reduce((best, x) => (Math.abs(x - preferred) < Math.abs(best - preferred) ? x : best));
+  };
+
+  // Every family has one horizontal line for its children. When some of the children sit lower
+  // (a big group split in lines, or a child whose partner comes from a lower generation), a vertical
+  // line goes down between the cards to a horizontal line of its own above that row.
+  const segments = []; // every horizontal line: which gap between rows, how far it reaches
   buses.forEach(bus => {
-    bus.left = Math.min(bus.from.x, ...bus.targets.map(t => t.to.x));
-    bus.right = Math.max(bus.from.x, ...bus.targets.map(t => t.to.x));
-    if (!byLevel.has(bus.level)) byLevel.set(bus.level, []);
-    byLevel.get(bus.level).push(bus);
+    const near = [];
+    const lower = new Map(); // row -> targets
+    bus.targets.forEach(t => {
+      const level = unitOf.get(t.childId).level;
+      if (level > bus.level + 1) {
+        if (!lower.has(level)) lower.set(level, []);
+        lower.get(level).push(t);
+      } else {
+        near.push(t);
+      }
+    });
+    bus.lower = lower;
+    bus.lowerY = new Map();
+    bus.trunkX = lower.size > 0 ? freeColumn(bus.level + 1, Math.max(...lower.keys()) - 1, bus.from.x) : null;
+
+    const xs = [bus.from.x, ...near.map(t => t.to.x)];
+    if (bus.trunkX !== null) xs.push(bus.trunkX);
+    segments.push({
+      gap: bus.level,
+      left: Math.min(...xs),
+      right: Math.max(...xs),
+      limit: near.length > 0 ? Math.min(...near.map(t => t.to.y)) : rowTop(bus.level + 1),
+      set: y => (bus.busY = y)
+    });
+    lower.forEach((targets, level) => {
+      const xs2 = [bus.trunkX, ...targets.map(t => t.to.x)];
+      segments.push({
+        gap: level - 1,
+        left: Math.min(...xs2),
+        right: Math.max(...xs2),
+        limit: rowTop(level),
+        set: y => bus.lowerY.set(level, y)
+      });
+    });
   });
 
-  byLevel.forEach((list, level) => {
-    // Interval colouring: the first height whose last bus ended before this one starts
+  const byGap = new Map();
+  segments.forEach(segment => {
+    if (!byGap.has(segment.gap)) byGap.set(segment.gap, []);
+    byGap.get(segment.gap).push(segment);
+  });
+
+  byGap.forEach((list, gap) => {
+    // Interval colouring: the first height whose last line ended before this one starts
     list.sort((a, b) => a.left - b.left || a.right - b.right);
     const ends = [];
-    list.forEach(bus => {
-      let lane = ends.findIndex(end => end + BUS_MARGIN < bus.left);
+    list.forEach(segment => {
+      let lane = ends.findIndex(end => end + BUS_MARGIN < segment.left);
       if (lane === -1) lane = ends.length;
-      ends[lane] = bus.right;
-      bus.lane = lane;
+      ends[lane] = segment.right;
+      segment.lane = lane;
     });
 
-    const first = rowTop(level) + M.NODE_H + BUS_START;
-    const lastAllowed = Math.min(...list.flatMap(bus => bus.targets.map(t => t.to.y))) - BUS_END;
+    const first = rowTop(gap) + M.NODE_H + BUS_START;
+    const lastAllowed = Math.min(...list.map(segment => segment.limit)) - BUS_END;
     const step = ends.length > 1 ? Math.min(BUS_STEP, Math.max((lastAllowed - first) / (ends.length - 1), 3)) : 0;
-    list.forEach(bus => (bus.busY = Math.min(first + bus.lane * step, lastAllowed)));
+    list.forEach(segment => segment.set(Math.min(first + segment.lane * step, lastAllowed)));
   });
+
+  // Same points without repeats and without points on a straight stretch
+  const tidy = points => {
+    const out = [];
+    points.forEach(pt => {
+      const last = out[out.length - 1];
+      if (last && last.x === pt.x && last.y === pt.y) return;
+      out.push({ x: pt.x, y: pt.y });
+    });
+    return out.filter((pt, i) => {
+      if (i === 0 || i === out.length - 1) return true;
+      const a = out[i - 1];
+      const b = out[i + 1];
+      return !((a.x === pt.x && pt.x === b.x) || (a.y === pt.y && pt.y === b.y));
+    });
+  };
 
   buses.forEach(bus => {
     bus.targets.forEach(({ childId, to }) => {
+      const level = unitOf.get(childId).level;
+      const lowerY = level > bus.level + 1 ? bus.lowerY.get(level) : undefined;
+      const route =
+        lowerY === undefined
+          ? null
+          : tidy([
+              bus.from,
+              { x: bus.from.x, y: bus.busY },
+              { x: bus.trunkX, y: bus.busY },
+              { x: bus.trunkX, y: lowerY },
+              { x: to.x, y: lowerY },
+              to
+            ]);
       edges.push({
         id: `child-${bus.key}-${childId}`,
         source: bus.key,
@@ -628,10 +749,23 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
         target: childId,
         targetHandle: 'top',
         type: 'busEdge',
-        data: { busY: bus.busY },
+        data: {
+          busY: lowerY === undefined ? bus.busY : lowerY,
+          childId,
+          parentIds: bus.parents,
+          ...(route ? { route } : {})
+        },
         style: { stroke: bus.color, strokeWidth: 2 }
       });
-      geometry.children.push({ from: bus.from, to, color: bus.color, busY: bus.busY });
+      geometry.children.push({
+        from: bus.from,
+        to,
+        color: bus.color,
+        childId,
+        parentIds: bus.parents,
+        busY: lowerY === undefined ? bus.busY : lowerY,
+        ...(route ? { route } : {})
+      });
     });
   });
 
