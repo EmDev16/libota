@@ -36,7 +36,8 @@ const BUS_END = 22;
 const BUS_MARGIN = 12; // two buses closer than this (sideways) get different heights
 // A family with more children than this is split over several lines (rows), each line of about equal size
 const WRAP_AT = 8;
-const ROW_CARDS = 16; // about how many cards one row of a generation should hold
+const ROW_CARDS = 16; // about how many cards one row of a generation holds, at the least
+const ROWS_PER_PERSON = 0.0267; // how many rows a tree may have: 4 + this x the number of people
 const MAX_SUB = 12; // most sub-rows one generation is spread over
 const TRUNK_CLEAR = 14; // free space around a vertical line that passes between cards
 
@@ -269,28 +270,43 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     unit.line = line;
   });
 
-  const subRows = Array.from({ length: maxGen + 1 }, () => 0);
-  groupsInGen.forEach((map, gen) => {
-    const groups = [...map.values()];
-    const count = Math.max(
-      1,
-      Math.min(MAX_SUB, Math.ceil(cardsInGen[gen] / ROW_CARDS)),
-      ...groups.map(g => g.lines)
-    );
-    const load = Array.from({ length: count }, (_, i) => (i === 0 ? fixedInGen[gen] : 0));
-    groups.forEach(group => {
-      let best = 0;
-      let bestMax = Infinity;
-      for (let base = 0; base + group.lines <= count; base++) {
-        let worst = 0;
-        for (let l = 0; l < group.lines; l++) worst = Math.max(worst, load[base + l] + (group.cards[l] || 0));
-        if (worst < bestMax) { bestMax = worst; best = base; }
-      }
-      group.base = best;
-      for (let l = 0; l < group.lines; l++) load[best + l] += group.cards[l] || 0;
-      subRows[gen] = Math.max(subRows[gen], best + group.lines - 1);
+  // Spread every generation over sub-rows, with about `rowCards` cards on a row. Returns the number
+  // of extra sub-rows per generation and gives every group of siblings its first sub-row (`base`).
+  const plan = rowCards => {
+    const subRows = Array.from({ length: maxGen + 1 }, () => 0);
+    groupsInGen.forEach((map, gen) => {
+      const groups = [...map.values()];
+      const count = Math.max(
+        1,
+        Math.min(MAX_SUB, Math.ceil(cardsInGen[gen] / rowCards)),
+        ...groups.map(g => g.lines)
+      );
+      const load = Array.from({ length: count }, (_, i) => (i === 0 ? fixedInGen[gen] : 0));
+      groups.forEach(group => {
+        let best = 0;
+        let bestMax = Infinity;
+        for (let base = 0; base + group.lines <= count; base++) {
+          let worst = 0;
+          for (let l = 0; l < group.lines; l++) worst = Math.max(worst, load[base + l] + (group.cards[l] || 0));
+          if (worst < bestMax) { bestMax = worst; best = base; }
+        }
+        group.base = best;
+        for (let l = 0; l < group.lines; l++) load[best + l] += group.cards[l] || 0;
+        subRows[gen] = Math.max(subRows[gen], best + group.lines - 1);
+      });
     });
-  });
+    return subRows;
+  };
+
+  // A tree should not get too tall either: about 8 rows for 150 people, 12 for 300, 17 for 500.
+  // Start with narrow rows and let them grow until the tree has few enough rows.
+  const rowBudget = Math.round(4 + ROWS_PER_PERSON * people.length);
+  let rowCards = ROW_CARDS;
+  let subRows = plan(rowCards);
+  while (subRows.reduce((sum, extra) => sum + 1 + extra, 0) > rowBudget && rowCards < 600) {
+    rowCards = Math.ceil(rowCards * 1.15);
+    subRows = plan(rowCards);
+  }
 
   const rowStart = [];
   subRows.reduce((start, extra, g) => { rowStart[g] = start; return start + 1 + extra; }, 0);
