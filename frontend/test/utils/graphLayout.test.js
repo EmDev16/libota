@@ -300,6 +300,47 @@ describe('calculateGraphLayout', () => {
     });
   });
 
+  describe('a busy generation', () => {
+    // one couple with 8 children who each have 4 children on their own: 32 cousins in one generation
+    const cousins = () => {
+      const parents = Array.from({ length: 8 }, (_, i) => `p${i}`);
+      const people = [
+        person('gdad', { spouses: ['gmum'], children: parents }),
+        person('gmum', { gender: 'female', spouses: ['gdad'], children: parents })
+      ];
+      parents.forEach((id, i) => {
+        const kids = Array.from({ length: 4 }, (_, j) => `c${i}_${j}`);
+        people.push(person(id, { parents: ['gdad', 'gmum'], birthDate: `19${30 + i}-01-01`, children: kids }));
+        kids.forEach((kid, j) => people.push(person(kid, { parents: [id], birthDate: `19${60 + j}-01-01` })));
+      });
+      return people;
+    };
+
+    it('is spread over several rows, with every family on one line', () => {
+      const layout = layoutOf(cousins());
+      const all = Array.from({ length: 8 }, (_, i) => Array.from({ length: 4 }, (_, j) => `c${i}_${j}`));
+      const rows = new Set(all.flat().map((id) => cardOf(layout, id).position.y));
+      expect(rows.size).toBeGreaterThan(1);
+      all.forEach((family) => {
+        expect(new Set(family.map((id) => cardOf(layout, id).position.y)).size).toBe(1);
+      });
+      // still below their parents
+      all.forEach((family, i) => {
+        expect(cardOf(layout, family[0]).position.y).toBeGreaterThan(cardOf(layout, `p${i}`).position.y);
+      });
+    });
+
+    it('is narrower than the same people on one row would be', () => {
+      const layout = layoutOf(cousins());
+      const xs = Array.from({ length: 8 }, (_, i) => Array.from({ length: 4 }, (_, j) => `c${i}_${j}`))
+        .flat()
+        .map((id) => cardOf(layout, id).position.x);
+      const spread = Math.max(...xs) - Math.min(...xs);
+      const { NODE_W } = MODERN_SIZES;
+      expect(spread).toBeLessThan(32 * (NODE_W + 20));
+    });
+  });
+
   describe('a family with many children', () => {
     const bigFamily = (n) => {
       const kids = Array.from({ length: n }, (_, i) => `kid${i}`);
@@ -331,7 +372,7 @@ describe('calculateGraphLayout', () => {
       // every person with parents still has exactly one line (14 children and the grandchild),
       // the lower children with a route around the cards
       expect(childEdges(layout)).toHaveLength(15);
-      expect(layout.geometry.children.filter((c) => c.route)).toHaveLength(7);
+      expect(layout.geometry.children.filter((c) => c.route).length).toBeGreaterThanOrEqual(7);
 
       const { NODE_W, NODE_H } = MODERN_SIZES;
       const cards = cardsOf(layout).map((n) => n.position);

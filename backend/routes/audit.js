@@ -5,36 +5,13 @@ const AuditLog = require('../models/AuditLog');
 const { adminAuth } = require('../middleware/auth');
 const { logEvent } = require('../utils/audit');
 const { restoreEntry, RestoreError } = require('../utils/personRestore');
+const { changesOf } = require('../utils/auditDiff');
 
 const router = express.Router();
 
 const RESTORABLE = ['person.create', 'person.update', 'person.delete'];
-const FIELDS = ['firstName', 'lastName', 'birthDate', 'deathDate', 'birthApprox', 'deathApprox', 'deceased', 'gender', 'description', 'photo', 'parents', 'spouses', 'formerSpouses'];
-const LINKS = ['parents', 'spouses', 'formerSpouses'];
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const ddmmyyyy = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
-
-// What changed in an update, in words a person can read
-const diff = (before, after) => {
-  if (!before || !after) return [];
-  const names = { ...(before.linkNames || {}), ...(after.linkNames || {}) };
-  const show = (field, snap) => {
-    const value = snap[field];
-    if (LINKS.includes(field)) return (value || []).map((id) => names[id] || '?').join(', ');
-    if (field === 'birthDate' || field === 'deathDate') return ddmmyyyy(value);
-    if (field === 'photo') return value ? 'photo' : '';
-    if (typeof value === 'boolean') return value ? '✓' : '–';
-    return value == null ? '' : String(value);
-  };
-  const changes = [];
-  for (const field of FIELDS) {
-    const a = LINKS.includes(field) ? [...(before[field] || [])].sort().join() : before[field] ?? '';
-    const b = LINKS.includes(field) ? [...(after[field] || [])].sort().join() : after[field] ?? '';
-    if (a !== b) changes.push({ field, from: show(field, before), to: show(field, after) });
-  }
-  return changes;
-};
 
 const view = (e) => ({
   id: e._id,
@@ -49,7 +26,7 @@ const view = (e) => ({
   targetId: e.targetId,
   targetName: e.targetName,
   message: e.message,
-  changes: e.action === 'person.update' ? diff(e.before, e.after) : [],
+  changes: changesOf(e),
   restoredAt: e.restoredAt,
   restoredBy: e.restoredBy,
   canRestore:

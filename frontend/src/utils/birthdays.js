@@ -1,6 +1,6 @@
 // The birthday emoji on the tree cards.
 //   today            -> 🥳
-//   in 1 to 7 days   -> 🎂 (with the date and the number of days as tooltip)
+//   in 1 to 7 days   -> 🎂 with the number of days left on it (and the date as tooltip)
 // Deceased people and people without a birth date never get one.
 
 export const SOON_DAYS = 7;
@@ -36,7 +36,15 @@ export const birthdayInfo = (person, today) => {
   };
 };
 
-// { emoji, title } for the corner of a card, or null
+// The words for the tooltip, from the site's translations (English when none are given)
+export const badgeLabels = t => ({
+  today: t('birthdayToday'),
+  tomorrow: t('birthdayTomorrow'),
+  inDays: n => t('birthdayInDays', { n })
+});
+
+// { emoji, days, title } for the corner of a card, or null.
+// days is the number of days left (1 to 7), shown on the cake like a countdown; 0 on the day itself.
 export const birthdayBadge = (person, today, labels = {}) => {
   const info = birthdayInfo(person, today);
   if (!info || info.daysAway > SOON_DAYS) return null;
@@ -44,10 +52,15 @@ export const birthdayBadge = (person, today, labels = {}) => {
   if (info.daysAway === 0) {
     return {
       emoji: EMOJI_TODAY,
+      days: 0,
       title: `${labels.today || 'Birthday today'} · ${info.turns}`
     };
   }
   const when =
-    info.daysAway === 1 ? labels.tomorrow || 'Tomorrow' : `${labels.inDays || 'In'} ${info.daysAway} ${labels.days || 'days'}`;
-  return { emoji: EMOJI_SOON, title: `${when} · ${info.label} · ${info.turns}` };
+    info.daysAway === 1
+      ? labels.tomorrow || 'Birthday tomorrow'
+      : labels.inDays
+        ? labels.inDays(info.daysAway)
+        : `Birthday in ${info.daysAway} days`;
+  return { emoji: EMOJI_SOON, days: info.daysAway, title: `${when} · ${info.label} · ${info.turns}` };
 };

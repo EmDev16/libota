@@ -8,7 +8,7 @@ const GalleryPhoto = require('../models/GalleryPhoto');
 const Person = require('../models/Person');
 const { auth, adminAuth } = require('../middleware/auth');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
-const { logEvent } = require('../utils/audit');
+const { logEvent, photoSnapshot } = require('../utils/audit');
 const { cleanTag, cleanTagList, InvalidTags } = require('../utils/tags');
 
 const router = express.Router();
@@ -166,7 +166,14 @@ const present = async (photos, user) => {
   });
 };
 
-const photoName = (p) => p.caption || p.album || 'Photo';
+// How a photo is named in the activity log: its caption, else its album, else who is on it, else its code
+const photoName = (p) => {
+  if (p.caption) return p.caption;
+  if (p.album) return `Photo (${p.album})`;
+  const names = (p.people || []).map((x) => x.name).filter(Boolean);
+  if (names.length > 0) return `Photo of ${names.slice(0, 3).join(', ')}${names.length > 3 ? '…' : ''}`;
+  return `Photo ${String(p._id).slice(-6)}`;
+};
 
 // All photos this account may see, newest first. Optional filters: ?album=&tag=&year=&person=&timeline=1
 router.get('/', auth, async (req, res) => {
@@ -240,7 +247,13 @@ router.post('/', adminAuth, uploadPhotos, async (req, res) => {
       docs.push(await GalleryPhoto.create({ ...metas[i], image: saved[i], createdBy: req.user._id }));
     }
     for (const doc of docs) {
-      await logEvent(req, { action: 'gallery.create', targetType: 'photo', targetId: doc._id, targetName: photoName(doc) });
+      await logEvent(req, {
+        action: 'gallery.create',
+        targetType: 'photo',
+        targetId: doc._id,
+        targetName: photoName(doc),
+        after: photoSnapshot(doc)
+      });
     }
     res.status(201).json(await present(docs.map((d) => d.toObject()), req.user));
   } catch (error) {
@@ -259,6 +272,7 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (!photo) return res.status(404).json({ error: 'Photo not found' });
 
     const meta = await cleanDetails(req.body, { admin: true });
+    const before = photoSnapshot(photo);
     photo.caption = meta.caption;
     photo.album = meta.album;
     photo.tags = meta.tags;
@@ -267,7 +281,14 @@ router.put('/:id', adminAuth, async (req, res) => {
     photo.takenYear = meta.takenYear;
     photo.takenDate = meta.takenDate;
     await photo.save();
-    await logEvent(req, { action: 'gallery.update', targetType: 'photo', targetId: photo._id, targetName: photoName(photo) });
+    await logEvent(req, {
+      action: 'gallery.update',
+      targetType: 'photo',
+      targetId: photo._id,
+      targetName: photoName(photo),
+      before,
+      after: photoSnapshot(photo)
+    });
     res.json((await present([photo.toObject()], req.user))[0]);
   } catch (error) {
     if (error instanceof Invalid || error instanceof InvalidTags) return res.status(400).json({ error: error.message });
@@ -284,7 +305,13 @@ router.delete('/:id', adminAuth, async (req, res) => {
     if (!photo) return res.status(404).json({ error: 'Photo not found' });
     await GalleryPhoto.findByIdAndDelete(photo._id);
     await removePhoto(photo.image);
-    await logEvent(req, { action: 'gallery.delete', targetType: 'photo', targetId: photo._id, targetName: photoName(photo) });
+    await logEvent(req, {
+      action: 'gallery.delete',
+      targetType: 'photo',
+      targetId: photo._id,
+      targetName: photoName(photo),
+      before: photoSnapshot(photo)
+    });
     res.json({ message: 'Photo deleted' });
   } catch (error) {
     console.error('Deleting a gallery photo failed:', error);

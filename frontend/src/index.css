@@ -932,7 +932,7 @@ body {
 }
 
 .relationship-finder {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
   background: var(--card);
   padding: 2rem;
@@ -942,9 +942,13 @@ body {
 
 .finder-form {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.5rem;
   margin-bottom: 2rem;
+}
+.finder-form > .btn-primary { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 900px) {
+  .finder-form { grid-template-columns: 1fr; }
 }
 
 .relationship-result {
@@ -1477,12 +1481,41 @@ small { color: var(--muted); }
 .person-node, .pedigree-card { position: relative; }
 .birthday-badge {
   position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 1.15rem;
+  top: 3px;
+  right: 5px;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
   line-height: 1;
   cursor: default;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+/* The days left until the birthday, in the middle of the cake */
+.birthday-days {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-38%);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  -webkit-text-stroke: 2.5px #5a2d0c;
+  paint-order: stroke fill;
+  text-shadow: 0 0 2px #5a2d0c;
+  pointer-events: none;
+}
+
+/* Choose a person: first the family name, then the person */
+.person-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.person-picker select { width: 100%; min-width: 0; }
+@media (max-width: 520px) {
+  .person-picker { grid-template-columns: 1fr; }
 }
 
 /* Search box in the navbar */
@@ -1826,6 +1859,35 @@ small { color: var(--muted); }
 
 .todo-link { color: var(--copper-dark); text-decoration: underline; }
 .todo-item h3 { margin-top: 0.75rem; }
+.todo-toggle {
+  margin-top: 0.25rem;
+  padding: 0.35rem 0;
+  background: none;
+  border: none;
+  color: var(--copper-dark);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.todo-expanded { max-height: 260px; overflow-y: auto; }
+
+/* Birthdays per month: twelve columns */
+.month-chart { display: flex; align-items: flex-end; gap: 4px; height: 170px; }
+.month-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+.month-bar { display: block; width: 100%; min-height: 3px; background: var(--copper-line); border-radius: 3px 3px 0 0; }
+.month-now .month-bar { background: var(--copper); }
+.month-n { font-size: 0.7rem; line-height: 1; min-height: 0.7rem; }
+.month-label { font-size: 0.72rem; line-height: 1; text-transform: uppercase; opacity: 0.75; }
+.month-now .month-label { font-weight: 700; opacity: 1; }
 .recent-activity li { border-bottom: 1px solid var(--line); padding: 0.4rem 0; overflow-wrap: anywhere; }
 .recent-activity li:last-child { border-bottom: none; }
 .admin-overview { margin-top: 1.5rem; }

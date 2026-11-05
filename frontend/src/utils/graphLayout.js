@@ -5,6 +5,8 @@
  * - Partners sit next to each other on the same row, even when both come from families in the tree
  *   (then the lines of the two families reach the couple from both sides).
  * - A person can have any number of partners: the row simply gets longer.
+ * - A generation that has many people is spread over several sub-rows, so a big family makes the
+ *   tree taller instead of very wide (150 people: about 7000px wide instead of 16000px).
  *
  * Input: the people to show (already cleaned up by normalizeRelationships).
  * Output: { nodes, edges } for @xyflow/react (same node and edge types as calculateModernLayout),
@@ -34,6 +36,8 @@ const BUS_END = 22;
 const BUS_MARGIN = 12; // two buses closer than this (sideways) get different heights
 // A family with more children than this is split over several lines (rows), each line of about equal size
 const WRAP_AT = 8;
+const ROW_CARDS = 16; // about how many cards one row of a generation should hold
+const MAX_SUB = 12; // most sub-rows one generation is spread over
 const TRUNK_CLEAR = 14; // free space around a vertical line that passes between cards
 
 const birthTime = p => (p.birthDate ? new Date(p.birthDate).getTime() : Infinity);
@@ -165,8 +169,59 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     sourcesOf.set(child._id, sources);
   });
 
-  // A big group of children is split into lines: the first line sits right below the parents, the
-  // next one a row lower, and so on. (Only for a couple's children, or the children of one parent.)
+  const hasParents = unit => unit.members.some(id => parentsOf(id).length > 0);
+  // A generation is one step down from the parents. A big family that wraps gets extra sub-rows
+  // of its own generation, so the next generation does not have to share a row with them.
+  units.forEach(unit => { unit.gen = 0; });
+  for (let round = 0, changed = true; changed && round < people.length + 5; round++) {
+    changed = false;
+    units.forEach(unit => {
+      unit.members.forEach(id => {
+        parentsOf(id).forEach(pid => {
+          const parentUnit = unitOf.get(pid);
+          if (!parentUnit || parentUnit === unit) return;
+          if (parentUnit.gen + 1 > unit.gen) {
+            unit.gen = parentUnit.gen + 1;
+            changed = true;
+          }
+        });
+      });
+    });
+  }
+
+  // A family with no parents above it sits right above its children, not at the very top
+  units.forEach(unit => {
+    if (hasParents(unit)) return;
+    const childGens = unit.members
+      .flatMap(id => kidsOf(id))
+      .map(cid => unitOf.get(cid))
+      .filter(u => u && u !== unit)
+      .map(u => u.gen);
+    if (childGens.length > 0) unit.gen = Math.max(unit.gen, Math.min(...childGens) - 1);
+  });
+
+  // Left-to-right order of the families, parents before children (rows are filled from this later)
+  const dfsOrder = [];
+  const visited = new Set();
+  const visit = unit => {
+    if (visited.has(unit)) return;
+    visited.add(unit);
+    dfsOrder.push(unit);
+
+    const children = unit.members
+      .flatMap(id => kidsOf(id))
+      .filter((cid, i, all) => all.indexOf(cid) === i)
+      .sort((x, y) => birthTime(byId.get(x)) - birthTime(byId.get(y)));
+    children.forEach(cid => visit(unitOf.get(cid)));
+  };
+  [...units]
+    .sort((a, b) => a.gen - b.gen || a.order - b.order)
+    .filter(unit => !hasParents(unit))
+    .forEach(visit);
+  units.forEach(visit); // anything left (only odd data, e.g. a loop of parents)
+
+  // A big group of children is split into lines of at most WRAP_AT (only for a couple's children,
+  // or the children of one parent).
   const lineOf = new Map(); // child id -> 0 for the first line, 1 for the second, ...
   const splitInLines = ids => {
     if (ids.length <= WRAP_AT) return;
@@ -185,36 +240,63 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   loneKids.forEach(splitInLines);
 
   // -------------------------------------------------------------------------
-  // 3. Generations: partners share a row, children are below all of their parents
+  // 3. Rows. A generation is one step down from the parents, but a busy generation is spread over
+  // several sub-rows (like bricks in a wall): every group of siblings stays together on one line,
+  // and the next group goes on another, so the tree gets taller instead of very wide. The lines
+  // from the parents run down between the cards.
   // -------------------------------------------------------------------------
-  const hasParents = unit => unit.members.some(id => parentsOf(id).length > 0);
+  const maxGen = units.reduce((max, u) => Math.max(max, u.gen), 0);
+  const groupOf = new Map(); // unit -> { key, lines, cards: [cards per line], base }
+  const groupsInGen = Array.from({ length: maxGen + 1 }, () => new Map());
+  const cardsInGen = Array.from({ length: maxGen + 1 }, () => 0);
+  units.forEach(unit => { cardsInGen[unit.gen] += unit.members.length; });
+  const fixedInGen = Array.from({ length: maxGen + 1 }, () => 0); // cards that stay on the first sub-row
+  dfsOrder.forEach(unit => {
+    const child = unit.members.find(id => sourcesOf.has(id));
+    if (!child) {
+      fixedInGen[unit.gen] += unit.members.length;
+      return;
+    }
+    const source = sourcesOf.get(child)[0];
+    const key = source.union ? source.union.id : source.person;
+    const map = groupsInGen[unit.gen];
+    if (!map.has(key)) map.set(key, { key, lines: 1, cards: [] });
+    const group = map.get(key);
+    const line = lineOf.get(child) || 0;
+    group.lines = Math.max(group.lines, line + 1);
+    group.cards[line] = (group.cards[line] || 0) + unit.members.length;
+    groupOf.set(unit, group);
+    unit.line = line;
+  });
 
-  for (let round = 0, changed = true; changed && round < people.length + 5; round++) {
-    changed = false;
-    units.forEach(unit => {
-      unit.members.forEach(id => {
-        parentsOf(id).forEach(pid => {
-          const parentUnit = unitOf.get(pid);
-          if (!parentUnit || parentUnit === unit) return;
-          const needed = parentUnit.level + 1 + (lineOf.get(id) || 0);
-          if (needed > unit.level) {
-            unit.level = needed;
-            changed = true;
-          }
-        });
-      });
+  const subRows = Array.from({ length: maxGen + 1 }, () => 0);
+  groupsInGen.forEach((map, gen) => {
+    const groups = [...map.values()];
+    const count = Math.max(
+      1,
+      Math.min(MAX_SUB, Math.ceil(cardsInGen[gen] / ROW_CARDS)),
+      ...groups.map(g => g.lines)
+    );
+    const load = Array.from({ length: count }, (_, i) => (i === 0 ? fixedInGen[gen] : 0));
+    groups.forEach(group => {
+      let best = 0;
+      let bestMax = Infinity;
+      for (let base = 0; base + group.lines <= count; base++) {
+        let worst = 0;
+        for (let l = 0; l < group.lines; l++) worst = Math.max(worst, load[base + l] + (group.cards[l] || 0));
+        if (worst < bestMax) { bestMax = worst; best = base; }
+      }
+      group.base = best;
+      for (let l = 0; l < group.lines; l++) load[best + l] += group.cards[l] || 0;
+      subRows[gen] = Math.max(subRows[gen], best + group.lines - 1);
     });
-  }
+  });
 
-  // A family with no parents above it sits right above its children, not at the very top
+  const rowStart = [];
+  subRows.reduce((start, extra, g) => { rowStart[g] = start; return start + 1 + extra; }, 0);
   units.forEach(unit => {
-    if (hasParents(unit)) return;
-    const childLevels = unit.members
-      .flatMap(id => kidsOf(id))
-      .map(cid => unitOf.get(cid))
-      .filter(u => u && u !== unit)
-      .map(u => u.level);
-    if (childLevels.length > 0) unit.level = Math.max(unit.level, Math.min(...childLevels) - 1);
+    const group = groupOf.get(unit);
+    unit.level = rowStart[unit.gen] + (group ? group.base + unit.line : 0);
   });
 
   // -------------------------------------------------------------------------
@@ -222,25 +304,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   // -------------------------------------------------------------------------
   const levelCount = units.reduce((max, u) => Math.max(max, u.level), 0) + 1;
   const rows = Array.from({ length: levelCount }, () => []);
-  const visited = new Set();
-
-  const visit = unit => {
-    if (visited.has(unit)) return;
-    visited.add(unit);
-    rows[unit.level].push(unit);
-
-    const children = unit.members
-      .flatMap(id => kidsOf(id))
-      .filter((cid, i, all) => all.indexOf(cid) === i)
-      .sort((x, y) => birthTime(byId.get(x)) - birthTime(byId.get(y)));
-    children.forEach(cid => visit(unitOf.get(cid)));
-  };
-
-  [...units]
-    .sort((a, b) => a.level - b.level || a.order - b.order)
-    .filter(unit => !hasParents(unit))
-    .forEach(visit);
-  units.forEach(visit); // anything left (only odd data, e.g. a loop of parents)
+  dfsOrder.forEach(unit => rows[unit.level].push(unit));
 
   // -------------------------------------------------------------------------
   // 5. Horizontal positions: pull every row toward the families above and below it

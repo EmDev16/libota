@@ -39,7 +39,14 @@ const FIELDS = {
   photo: 'logFieldPhoto',
   parents: 'logFieldParents',
   spouses: 'logFieldSpouses',
-  formerSpouses: 'logFieldFormerSpouses'
+  formerSpouses: 'logFieldFormerSpouses',
+  caption: 'logFieldCaption',
+  album: 'logFieldAlbum',
+  tags: 'logFieldTags',
+  hiddenTags: 'logFieldHiddenTags',
+  people: 'logFieldPeople',
+  takenYear: 'logFieldYear',
+  takenDate: 'logFieldTakenDate'
 };
 
 const pad = (n) => String(n).padStart(2, '0');

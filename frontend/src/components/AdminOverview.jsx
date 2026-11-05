@@ -47,6 +47,7 @@ const AdminOverview = ({ isAdmin = false }) => {
   const [people, setPeople] = useState(null);
   const [pending, setPending] = useState(0);
   const [entries, setEntries] = useState(null);
+  const [expanded, setExpanded] = useState({}); // to-do items that show their whole list
 
   // each part loads on its own, so one failing does not hide the others
   useEffect(() => {
@@ -64,8 +65,10 @@ const AdminOverview = ({ isAdmin = false }) => {
     const noBirth = people.filter((p) => !p.birthDate);
     const noPhoto = people.filter((p) => !p.photo);
     const unlinked = people.length > 1 ? findUnlinkedPeople(people) : [];
+    const noDeath = people.filter((p) => p.deceased && !p.deathDate);
     todos.push(
       { key: 'noBirth', label: t('todoNoBirth'), list: noBirth },
+      { key: 'noDeath', label: t('todoNoDeathDate'), list: noDeath },
       { key: 'noPhoto', label: t('todoNoPhoto'), list: noPhoto },
       { key: 'unlinked', label: t('todoUnlinked'), list: unlinked }
     );
@@ -86,14 +89,23 @@ const AdminOverview = ({ isAdmin = false }) => {
           {open.map((x) => (
             <div key={x.key} className="todo-item">
               <h3>{x.label} ({x.list.length})</h3>
-              <ul className="plain-list">
-                {x.list.slice(0, SHOWN).map((p) => (
+              <ul className={`plain-list${expanded[x.key] ? ' todo-expanded' : ''}`}>
+                {(expanded[x.key] ? x.list : x.list.slice(0, SHOWN)).map((p) => (
                   <li key={p._id}>
                     <Link to={isAdmin ? `/people/${p._id}/edit` : `/tree?person=${p._id}`} className="todo-link">{name(p)}</Link>
                   </li>
                 ))}
-                {x.list.length > SHOWN && <li className="muted">{t('todoMore', { n: x.list.length - SHOWN })}</li>}
               </ul>
+              {x.list.length > SHOWN && (
+                <button
+                  type="button"
+                  className="todo-toggle"
+                  aria-expanded={!!expanded[x.key]}
+                  onClick={() => setExpanded({ ...expanded, [x.key]: !expanded[x.key] })}
+                >
+                  {expanded[x.key] ? t('todoShowLess') : `${t('todoMore', { n: x.list.length - SHOWN })} · ${t('todoShowAll')}`}
+                </button>
+              )}
             </div>
           ))}
         </section>

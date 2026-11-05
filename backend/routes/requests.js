@@ -8,7 +8,7 @@ const Person = require('../models/Person');
 const SuggestionRequest = require('../models/SuggestionRequest');
 const { auth, adminAuth } = require('../middleware/auth');
 const { savePhoto, removePhoto } = require('../utils/photoStorage');
-const { logEvent, personSnapshot } = require('../utils/audit');
+const { logEvent, personSnapshot, photoSnapshot } = require('../utils/audit');
 const GalleryPhoto = require('../models/GalleryPhoto');
 const { cleanDetails, Invalid: InvalidMeta, GALLERY_SIZE, photoName } = require('./gallery');
 const { InvalidTags } = require('../utils/tags');
@@ -303,7 +303,8 @@ router.post('/:id/items/:itemId/approve', adminAuth, async (req, res) => {
         targetType: 'photo',
         targetId: photo._id,
         targetName: photoName(photo),
-        message: `Approved suggestion from ${request.senderName} (${request.account})`
+        message: `Approved suggestion from ${request.senderName} (${request.account})`,
+        after: photoSnapshot(photo)
       });
       item.status = 'approved';
       item.handledAt = new Date();

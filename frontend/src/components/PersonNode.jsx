@@ -1,19 +1,21 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
+import { useTranslation } from 'react-i18next';
 import { photoUrl } from '../utils/photo';
 import { isDeceased, lifespanText } from '../utils/lifespan';
-import { birthdayBadge } from '../utils/birthdays';
+import { birthdayBadge, badgeLabels } from '../utils/birthdays';
 import { localToday } from '../utils/dates';
 
 // The handles are only anchor points for the lines, so they are invisible
 const hidden = { opacity: 0, pointerEvents: 'none' };
 
 const PersonNode = ({ data }) => {
+  const { t } = useTranslation();
   const { person, reference } = data;
   const genderColor =
     person.gender === 'male' ? '#3498db' : person.gender === 'female' ? '#e74c3c' : '#95a5a6';
 
-  const badge = birthdayBadge(person, localToday());
+  const badge = birthdayBadge(person, localToday(), badgeLabels(t));
   const lifespan = lifespanText(person, (birth) => `b. ${birth}`);
 
   return (
@@ -38,8 +40,13 @@ const PersonNode = ({ data }) => {
       <Handle id="right-source" type="source" position={Position.Right} style={hidden} isConnectable={false} />
 
       {badge && (
-        <span className="birthday-badge" title={badge.title} aria-label={badge.title}>
+        <span className="birthday-badge" role="img" title={badge.title} aria-label={badge.title}>
           {badge.emoji}
+          {badge.days > 0 && (
+            <span className="birthday-days" aria-hidden="true">
+              {badge.days}
+            </span>
+          )}
         </span>
       )}
 

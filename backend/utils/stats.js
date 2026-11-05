@@ -145,12 +145,34 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
     count: ages.filter((age) => age >= from && age <= to).length
   }));
 
-  // what is still unknown about the family
-  const missing = {
-    birthDate: list.filter((p) => !p.birthDate).length,
-    deathDate: deceased.filter((p) => !p.deathDate).length,
-    approximate: list.filter((p) => (p.birthDate && p.birthApprox) || (p.deathDate && p.deathApprox)).length
-  };
+  // birthdays per month (living people with a real birth date; an approximate date has no real month)
+  const birthdaysByMonth = Array.from({ length: 12 }, () => 0);
+  for (const p of living) {
+    const birth = asDate(p.birthDate);
+    if (birth && !p.birthApprox) birthdaysByMonth[birth.getUTCMonth()] += 1;
+  }
+
+  // the couples with the most children (both parents known), and the average over couples with children
+  const { byId } = generationsOf(list);
+  const kidsOfPair = new Map();
+  for (const p of list) {
+    const parents = [...new Set((p.parents || []).map(idOf))].filter((id) => byId.has(id));
+    if (parents.length !== 2) continue;
+    const key = parents.sort().join('|');
+    kidsOfPair.set(key, (kidsOfPair.get(key) || 0) + 1);
+  }
+  const biggestFamilies = [...kidsOfPair.entries()]
+    .filter(([, children]) => children >= 2)
+    .map(([key, children]) => ({
+      id: key,
+      parents: key.split('|').map((id) => fullName(byId.get(id))),
+      children
+    }))
+    .sort((a, b) => b.children - a.children || a.parents[0].localeCompare(b.parents[0]))
+    .slice(0, 3);
+  const averageChildren = kidsOfPair.size
+    ? Math.round(([...kidsOfPair.values()].reduce((a, b) => a + b, 0) / kidsOfPair.size) * 10) / 10
+    : null;
 
   // growth: people born per decade, and the running total
   const perDecade = new Map();
@@ -225,7 +247,9 @@ function computeStats(people, { today, birthdayDays = 30 } = {}) {
     averageLifespan,
     averageAge,
     ageGroups,
-    missing,
+    birthdaysByMonth,
+    biggestFamilies,
+    averageChildren,
     ageSample: ages.length,
     lifespanSample: lifespans.length,
     oldestLiving,

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { treeAPI, personAPI } from '../api';
 import { useDialog } from '../components/DialogProvider';
 import { relationSentence, genderedFrench } from '../utils/relationship';
+import PersonPicker from '../components/PersonPicker';
 
 const RelationshipFinder = () => {
   const { t, i18n } = useTranslation();
@@ -49,31 +50,11 @@ const RelationshipFinder = () => {
       <div className="finder-form">
         <div className="form-group">
           <label>{t('selectPerson1')}</label>
-          <select
-            value={person1}
-            onChange={(e) => setPerson1(e.target.value)}
-          >
-            <option value="">{t('selectPerson')}</option>
-            {people.map(person => (
-              <option key={person._id} value={person._id}>
-                {person.firstName} {person.lastName}
-              </option>
-            ))}
-          </select>
+          <PersonPicker people={people} value={person1} onChange={setPerson1} />
         </div>
         <div className="form-group">
           <label>{t('selectPerson2')}</label>
-          <select
-            value={person2}
-            onChange={(e) => setPerson2(e.target.value)}
-          >
-            <option value="">{t('selectPerson')}</option>
-            {people.map(person => (
-              <option key={person._id} value={person._id}>
-                {person.firstName} {person.lastName}
-              </option>
-            ))}
-          </select>
+          <PersonPicker people={people} value={person2} onChange={setPerson2} />
         </div>
         <button
           onClick={handleFind}

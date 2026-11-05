@@ -43,6 +43,22 @@ async function personSnapshot(person) {
   return snap;
 }
 
+// A plain copy of a gallery photo, for the activity log (what a photo looked like before/after)
+function photoSnapshot(photo) {
+  if (!photo) return null;
+  const p = typeof photo.toObject === 'function' ? photo.toObject({ virtuals: false }) : photo;
+  return {
+    _id: idOf(p._id),
+    caption: p.caption || '',
+    album: p.album || '',
+    tags: [...(p.tags || [])],
+    hiddenTags: [...(p.hiddenTags || [])],
+    people: (p.people || []).map((x) => x.name),
+    takenYear: p.takenYear || null,
+    takenDate: day(p.takenDate)
+  };
+}
+
 const personName = (snap) => (snap ? `${snap.firstName} ${snap.lastName}` : '');
 
 // entry: { action, status?, actor?, username?, targetType?, targetId?, targetName?, message?, before?, after? }
@@ -75,4 +91,4 @@ function sameSnapshot(a, b) {
   return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
 }
 
-module.exports = { logEvent, personSnapshot, personName, sameSnapshot };
+module.exports = { logEvent, personSnapshot, photoSnapshot, personName, sameSnapshot };

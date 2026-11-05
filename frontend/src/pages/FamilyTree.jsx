@@ -23,7 +23,7 @@ import { calculateGraphLayoutFor } from '../utils/graphLayout';
 import { familyOptions, oldestOfFamily } from '../utils/families';
 import { localToday } from '../utils/dates';
 import { dateText, lifespanText } from '../utils/lifespan';
-import { birthdayBadge } from '../utils/birthdays';
+import { birthdayBadge, badgeLabels } from '../utils/birthdays';
 
 const nodeTypes = {
   personNode: PersonNode,
@@ -39,12 +39,18 @@ const isPhone = typeof window !== 'undefined' && window.innerWidth < 600;
 
 // Single person card (used in the tree and in the unlinked section)
 const PersonCard = ({ person, onClick, style, focused }) => {
-  const badge = birthdayBadge(person, localToday());
+  const { t } = useTranslation();
+  const badge = birthdayBadge(person, localToday(), badgeLabels(t));
   return (
   <div className={`pedigree-card${focused ? ' pedigree-focus' : ''}`} style={style} onClick={() => onClick(person)}>
     {badge && (
-      <span className="birthday-badge" title={badge.title} aria-label={badge.title}>
+      <span className="birthday-badge" role="img" title={badge.title} aria-label={badge.title}>
         {badge.emoji}
+        {badge.days > 0 && (
+          <span className="birthday-days" aria-hidden="true">
+            {badge.days}
+          </span>
+        )}
       </span>
     )}
     {person.photo && (

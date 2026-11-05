@@ -45,8 +45,38 @@ const BarList = ({ rows, unit }) => {
   );
 };
 
+// Twelve columns, one per month (the current month is marked)
+const MonthChart = ({ counts, labels, current }) => {
+  const max = Math.max(1, ...counts);
+  return (
+    <div className="month-chart">
+      {counts.map((n, i) => (
+        <div key={i} className={`month-col${i === current ? ' month-now' : ''}`} title={`${labels.long[i]}: ${n}`}>
+          <span className="month-n">{n > 0 ? n : ''}</span>
+          <span className="month-bar" style={{ height: `${(n / max) * 100}%` }} />
+          <span className="month-label">{labels.short[i]}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Month names in the language of the site (Lingala falls back to French, which browsers know)
+const monthNames = (language) => {
+  const lang = (language || 'en').slice(0, 2) === 'ln' ? 'fr' : language || 'en';
+  const names = (style) =>
+    Array.from({ length: 12 }, (_, m) => {
+      try {
+        return new Date(2000, m, 1).toLocaleDateString(lang, { month: style });
+      } catch {
+        return String(m + 1);
+      }
+    });
+  return { short: names('narrow'), long: names('long') };
+};
+
 const Dashboard = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
@@ -201,17 +231,33 @@ const Dashboard = () => {
             </section>
           )}
 
-          {stats.missing && (
+          {stats.birthdaysByMonth && stats.birthdaysByMonth.some((n) => n > 0) && (
             <section className="insight-card">
-              <h2>{t('dashMissing')}</h2>
-              {stats.missing.birthDate + stats.missing.deathDate + stats.missing.approximate === 0 ? (
-                <p className="muted">{t('missingNone')}</p>
-              ) : (
-                <ul className="plain-list">
-                  {stats.missing.birthDate > 0 && <li>{t('missingBirth', { n: stats.missing.birthDate })}</li>}
-                  {stats.missing.deathDate > 0 && <li>{t('missingDeath', { n: stats.missing.deathDate })}</li>}
-                  {stats.missing.approximate > 0 && <li>{t('missingApprox', { n: stats.missing.approximate })}</li>}
-                </ul>
+              <h2>{t('dashBirthMonths')}</h2>
+              <MonthChart
+                counts={stats.birthdaysByMonth}
+                labels={monthNames(i18n.language)}
+                current={new Date(`${stats.today}T00:00:00Z`).getUTCMonth()}
+              />
+            </section>
+          )}
+
+          {stats.biggestFamilies && stats.biggestFamilies.length > 0 && (
+            <section className="insight-card">
+              <h2>{t('dashBiggestFamilies')}</h2>
+              <ul className="plain-list">
+                {stats.biggestFamilies.map((f) => (
+                  <li key={f.id}>
+                    {f.parents.join(' & ')}{' '}
+                    <span className="muted">· {t('familyChildren', { n: f.children })}</span>
+                  </li>
+                ))}
+              </ul>
+              {stats.averageChildren !== null && stats.averageChildren !== undefined && (
+                <dl className="facts">
+                  <dt>{t('dashAvgChildren')}</dt>
+                  <dd>{stats.averageChildren}</dd>
+                </dl>
               )}
             </section>
           )}

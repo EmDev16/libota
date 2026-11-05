@@ -83,9 +83,7 @@ describe('computeStats', () => {
     assert.equal(stats.living, 2);
     assert.equal(stats.deceased, 1);
     assert.deepEqual(stats.birthdays.map((b) => b.id), ['a']);
-    assert.equal(stats.missing.birthDate, 1);
-    assert.equal(stats.missing.deathDate, 1);
-    assert.equal(stats.missing.approximate, 1);
+    assert.equal(stats.birthdaysByMonth[9], 1); // only a: c has no real day
   });
 
   it('spreads the living family over age groups', () => {
@@ -121,9 +119,7 @@ describe('computeStats', () => {
     assert.equal(stats.living, 2);
     assert.equal(stats.deceased, 2);
     assert.deepEqual(stats.birthdays.map((b) => b.id), ['a']);
-    assert.equal(stats.missing.birthDate, 1); // c
-    assert.equal(stats.missing.deathDate, 2); // c and d: deceased, no death date
-    assert.equal(stats.missing.approximate, 2); // b and d
+    assert.equal(stats.birthdaysByMonth.reduce((a, b) => a + b, 0), 1); // only a
   });
 
   it('spreads the living over age groups', () => {
@@ -144,6 +140,51 @@ describe('computeStats', () => {
       { key: 'adults', count: 1 },
       { key: 'seniors', count: 1 }
     ]);
+  });
+
+  it('counts the living birthdays per month, without approximate dates', () => {
+    const stats = computeStats(
+      [
+        person('a', { birthDate: '1990-01-05' }),
+        person('b', { birthDate: '1985-01-20' }),
+        person('c', { birthDate: '1970-12-31' }),
+        person('d', { birthDate: '1950-03-03', deathDate: '2000-01-01' }), // deceased
+        person('e', { birthDate: '1960-06-01', birthApprox: true }), // only the year is known
+        person('f', {}) // no date
+      ],
+      { today }
+    );
+    assert.equal(stats.birthdaysByMonth.length, 12);
+    assert.deepEqual(stats.birthdaysByMonth, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+  });
+
+  it('finds the couples with the most children', () => {
+    const stats = computeStats(
+      [
+        person('m1', { spouses: ['f1'] }),
+        person('f1', { spouses: ['m1'] }),
+        person('m2', { spouses: ['f2'] }),
+        person('f2', { spouses: ['m2'] }),
+        person('k1', { parents: ['m1', 'f1'] }),
+        person('k2', { parents: ['m1', 'f1'] }),
+        person('k3', { parents: ['m1', 'f1'] }),
+        person('k4', { parents: ['f2', 'm2'] }),
+        person('k5', { parents: ['m2', 'f2'] }),
+        person('solo', { parents: ['m1'] }) // one parent: not part of a couple
+      ],
+      { today }
+    );
+    assert.equal(stats.biggestFamilies.length, 2);
+    assert.equal(stats.biggestFamilies[0].children, 3);
+    assert.deepEqual(stats.biggestFamilies[0].parents.sort(), ['Pf1 Test', 'Pm1 Test']);
+    assert.equal(stats.biggestFamilies[1].children, 2);
+    assert.equal(stats.averageChildren, 2.5);
+  });
+
+  it('has no biggest families when nobody has two parents', () => {
+    const stats = computeStats([person('a'), person('b', { parents: ['a'] })], { today });
+    assert.deepEqual(stats.biggestFamilies, []);
+    assert.equal(stats.averageChildren, null);
   });
 
   it('averages the age at death, only for people with both dates', () => {
