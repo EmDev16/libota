@@ -26,10 +26,10 @@ import {
 
 const M = MODERN_SIZES;
 const PITCH = M.NODE_W + M.PARTNER_GAP; // distance between two partners' left sides
-const UNIT_GAP = 60; // free space between two rows-of-partners on one generation
+const UNIT_GAP = 84; // free space between two rows-of-partners on one generation
 const ORDER_BY_LINEAGE = true; // order every row by the founders the people descend from (false: by family only)
 const MAX_FOUNDERS = 150; // with more separate founders than this the ordering is left out (it would be slow)
-const ZONE_GAP = 30; // a bit more where one lineage ends and the next begins
+const ZONE_GAP = 40; // a bit more where one lineage ends and the next begins
 const ZONE_STEP = 0.9; // how far apart two lineage scores must be for that
 const PASSES = 24;
 const ORDER_SWEEPS = 12;
