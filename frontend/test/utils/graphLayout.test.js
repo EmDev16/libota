@@ -326,6 +326,42 @@ describe('calculateGraphLayout', () => {
       });
     });
 
+    it('keeps the whole row in lineage order: family A, then those from both, then family B', () => {
+      const wide = () => {
+        const people = crossed();
+        const find = (id) => people.find((p) => p._id === id);
+        ['a4', 'a6'].forEach((kid, i) => {
+          find('ga1').children.push(kid);
+          find('ga2').children.push(kid);
+          people.push(person(kid, { parents: ['ga1', 'ga2'], birthDate: `195${4 + i}-01-01`, children: [`${kid}x`] }));
+          people.push(person(`${kid}x`, { parents: [kid], birthDate: `198${3 + i}-01-01` }));
+        });
+        ['b4', 'b6'].forEach((kid, i) => {
+          find('gb1').children.push(kid);
+          find('gb2').children.push(kid);
+          people.push(person(kid, { parents: ['gb1', 'gb2'], birthDate: `195${4 + i}-01-01`, children: [`${kid}x`] }));
+          people.push(person(`${kid}x`, { parents: [kid], birthDate: `198${3 + i}-01-01` }));
+        });
+        return people;
+      };
+      [0, 4, 9].forEach((shift) => {
+        const people = wide();
+        const layout = layoutOf(people.slice(shift).concat(people.slice(0, shift)));
+        const x = (id) => cardOf(layout, id).position.x;
+        const pureA = ['a3', 'a4x', 'a6x'].map(x);
+        const pureB = ['b3', 'b4x', 'b6x'].map(x);
+        const mixed = x('m');
+        const aIsLeft = Math.max(...pureA) < Math.min(...pureB);
+        if (aIsLeft) {
+          expect(Math.max(...pureA)).toBeLessThan(mixed);
+          expect(mixed).toBeLessThan(Math.min(...pureB));
+        } else {
+          expect(Math.max(...pureB)).toBeLessThan(mixed);
+          expect(mixed).toBeLessThan(Math.min(...pureA));
+        }
+      });
+    });
+
     it('keeps the pure descendants of each family on their own side', () => {
       const layout = layoutOf(crossed());
       const x = (id) => cardOf(layout, id).position.x;

@@ -377,7 +377,8 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   // A person who descends from two founders is placed between them, so the lineages stay on their
   // own side of the tree and the people who belong to both end up in the middle.
   const dfsIndex = new Map(dfsOrder.map((unit, i) => [unit, i]));
-  const founders = dfsOrder.filter(unit => !hasParents(unit) && unit.members.some(id => kidsOf(id).length > 0));
+  // (only the oldest generation: a partner's parents, recorded further down, are not a lineage of their own)
+  const founders = dfsOrder.filter(unit => !hasParents(unit) && unit.gen === 0 && unit.members.some(id => kidsOf(id).length > 0));
   const founderIndex = new Map(founders.map((unit, i) => [unit, i]));
   const lineage = new Map(); // person id -> { founder index: share }
   [...units].sort((a, b) => a.gen - b.gen).forEach(unit => {
@@ -415,6 +416,36 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     return scores.length > 0 ? mean(scores) : null;
   };
   const unitScore = new Map(units.map(unit => [unit, scoreOfUnit(unit)]));
+  // Someone without any known ancestry (a partner from outside, or the parents of such a partner)
+  // takes the score of the family they are connected to: their children's, else their parents'.
+  {
+    const neighbours = unit => {
+      const found = [];
+      unit.members.forEach(id => {
+        kidsOf(id).forEach(cid => found.push(unitOf.get(cid)));
+        parentsOf(id).forEach(pid => found.push(unitOf.get(pid)));
+      });
+      return found.filter(u => u && u !== unit);
+    };
+    for (let pass = 0; pass < 12; pass++) {
+      let changed = false;
+      units.forEach(unit => {
+        if (unitScore.get(unit) !== null) return;
+        const known = neighbours(unit).map(u => unitScore.get(u)).filter(v => v !== null);
+        if (known.length > 0) {
+          unitScore.set(unit, mean(known));
+          changed = true;
+        }
+      });
+      if (!changed) break;
+    }
+    let previous = 0;
+    dfsOrder.forEach(unit => {
+      if (unitScore.get(unit) === null) unitScore.set(unit, previous);
+      else previous = unitScore.get(unit);
+    });
+    unitScore.forEach((value, unit) => unitScore.set(unit, Math.round(value * 1e6) / 1e6));
+  }
   if (ORDER_BY_LINEAGE && founders.length <= MAX_FOUNDERS) {
     const byScore = (a, b) => {
       const x = unitScore.get(a);
@@ -502,6 +533,13 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     flipUnit(unit);
   };
 
+  // With the lineage order on, a row keeps that order: nobody is moved past a person of another
+  // lineage (people of the same lineage can still change places to avoid crossing lines)
+  const locked = ORDER_BY_LINEAGE && founders.length <= MAX_FOUNDERS;
+  const inOrder = wishes => (a, b) =>
+    locked && unitScore.get(a) !== unitScore.get(b) ? unitScore.get(a) - unitScore.get(b) : wishes.get(a) - wishes.get(b);
+  const mayPass = (a, b) => !locked || unitScore.get(a) === unitScore.get(b);
+
   // Free space after the i-th unit of a row: a little more where one lineage ends and another starts
   const gapAfter = (row, i) => {
     const a = unitScore.get(row[i]);
@@ -559,7 +597,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
       const row = rows[level];
       row.forEach(flipIfBetter);
       const wishes = new Map(row.map(unit => [unit, desiredLeft(unit)]));
-      row.sort((a, b) => wishes.get(a) - wishes.get(b));
+      row.sort(inOrder(wishes));
       pack(row);
     });
   }
@@ -602,6 +640,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
         });
         // swap neighbours
         for (let i = 0; i + 1 < row.length; i++) {
+          if (!mayPass(row[i], row[i + 1])) continue;
           const before = crossingsAround(level);
           [row[i], row[i + 1]] = [row[i + 1], row[i]];
           pack(row);
@@ -645,7 +684,7 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
         levelsInOrder(sweep % 2 === 0).forEach(level => {
           const row = rows[level];
           const wishes = new Map(row.map(unit => [unit, desiredLeft(unit)]));
-          row.sort((a, b) => wishes.get(a) - wishes.get(b));
+          row.sort(inOrder(wishes));
           pack(row);
         });
       }
