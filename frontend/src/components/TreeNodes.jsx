@@ -1,5 +1,6 @@
 import React from 'react';
 import { BaseEdge, Handle, Position } from '@xyflow/react';
+import { liveRoute } from '../utils/edgeRoute';
 
 const hidden = { opacity: 0, pointerEvents: 'none' };
 
@@ -54,7 +55,10 @@ const routedPath = (points, maxRadius = 8) => {
 };
 
 export const BusEdge = ({ sourceX, sourceY, targetX, targetY, data, style }) => {
-  if (data?.route && data.route.length > 1) return <BaseEdge path={routedPath(data.route)} style={style} />;
+  // a line that goes around cards follows its two cards when they are dragged
+  if (data?.route && data.route.length > 1) {
+    return <BaseEdge path={routedPath(liveRoute(data.route, sourceX, sourceY, targetX, targetY))} style={style} />;
+  }
   const busY = data?.busY ?? (sourceY + targetY) / 2;
   const dx = targetX - sourceX;
 

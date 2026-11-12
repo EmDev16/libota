@@ -7,6 +7,10 @@
  * - A person can have any number of partners: the row simply gets longer.
  * - A generation that has many people is spread over several sub-rows, so a big family makes the
  *   tree taller instead of very wide (150 people: about 7000px wide instead of 16000px).
+ * - Every row is ordered by lineage: the oldest recorded couples are put in an order where those who
+ *   share many descendants stand next to each other, and every person is placed by the founders they
+ *   descend from. Someone who descends from two founders ends up between them, with a little more space
+ *   where one lineage ends and the next begins.
  *
  * Input: the people to show (already cleaned up by normalizeRelationships).
  * Output: { nodes, edges } for @xyflow/react (same node and edge types as calculateModernLayout),
@@ -23,6 +27,10 @@ import {
 const M = MODERN_SIZES;
 const PITCH = M.NODE_W + M.PARTNER_GAP; // distance between two partners' left sides
 const UNIT_GAP = 60; // free space between two rows-of-partners on one generation
+const ORDER_BY_LINEAGE = true; // order every row by the founders the people descend from (false: by family only)
+const MAX_FOUNDERS = 150; // with more separate founders than this the ordering is left out (it would be slow)
+const ZONE_GAP = 30; // a bit more where one lineage ends and the next begins
+const ZONE_STEP = 0.9; // how far apart two lineage scores must be for that
 const PASSES = 24;
 const ORDER_SWEEPS = 12;
 // Line colours of the families (not the red and blue of the cards, which mean female and male)
@@ -42,6 +50,51 @@ const MAX_SUB = 12; // most sub-rows one generation is spread over
 const TRUNK_CLEAR = 14; // free space around a vertical line that passes between cards
 
 const birthTime = p => (p.birthDate ? new Date(p.birthDate).getTime() : Infinity);
+// Order n items on a line so that items with a big weight between them are close (spectral seriation).
+// Separate groups (no weight between them) are put one after the other, the biggest first.
+const seriate = (n, weight) => {
+  const place = new Array(n).fill(0);
+  if (n <= 1) return place;
+  const w = Array.from({ length: n }, (_, a) => Array.from({ length: n }, (_, b) => (a === b ? 0 : weight(a, b))));
+  const seen = new Array(n).fill(false);
+  const groups = [];
+  for (let start = 0; start < n; start++) {
+    if (seen[start]) continue;
+    const members = [];
+    const queue = [start];
+    seen[start] = true;
+    while (queue.length) {
+      const a = queue.shift();
+      members.push(a);
+      for (let b = 0; b < n; b++) if (!seen[b] && w[a][b] > 1e-9) { seen[b] = true; queue.push(b); }
+    }
+    groups.push(members);
+  }
+  groups.sort((a, b) => b.length - a.length);
+  let next = 0;
+  groups.forEach(members => {
+    const m = members.length;
+    let order = members;
+    if (m > 2) {
+      // second-smallest eigenvector of the Laplacian, by power iteration on (c*I - L)
+      const deg = members.map(a => members.reduce((sum, b) => sum + w[a][b], 0));
+      const c = 2 * Math.max(...deg) + 1;
+      let v = members.map((_, i) => Math.sin((i + 1) * 1.7) + i * 0.01);
+      for (let iter = 0; iter < 300; iter++) {
+        const mu = v.reduce((a, b) => a + b, 0) / m;
+        v = v.map(x => x - mu);
+        const nv = members.map((a, i) => (c - deg[i]) * v[i] + members.reduce((sum, b, j) => sum + w[a][b] * v[j], 0));
+        const norm = Math.sqrt(nv.reduce((sum, x) => sum + x * x, 0)) || 1;
+        v = nv.map(x => x / norm);
+      }
+      order = members.map((a, i) => [a, v[i]]).sort((x, y) => x[1] - y[1]).map(x => x[0]);
+    }
+    order.forEach(a => { place[a] = next++; });
+    next += 0.5; // a little room between separate groups
+  });
+  return place;
+};
+
 const mean = list => list.reduce((a, b) => a + b, 0) / list.length;
 
 export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unlinked Members') {
@@ -320,7 +373,61 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
   // -------------------------------------------------------------------------
   const levelCount = units.reduce((max, u) => Math.max(max, u.level), 0) + 1;
   const rows = Array.from({ length: levelCount }, () => []);
-  dfsOrder.forEach(unit => rows[unit.level].push(unit));
+  // Which founders (the oldest recorded couples) everybody descends from, and how much of each.
+  // A person who descends from two founders is placed between them, so the lineages stay on their
+  // own side of the tree and the people who belong to both end up in the middle.
+  const dfsIndex = new Map(dfsOrder.map((unit, i) => [unit, i]));
+  const founders = dfsOrder.filter(unit => !hasParents(unit) && unit.members.some(id => kidsOf(id).length > 0));
+  const founderIndex = new Map(founders.map((unit, i) => [unit, i]));
+  const lineage = new Map(); // person id -> { founder index: share }
+  [...units].sort((a, b) => a.gen - b.gen).forEach(unit => {
+    unit.members.forEach(id => {
+      if (founderIndex.has(unit)) {
+        lineage.set(id, { [founderIndex.get(unit)]: 1 });
+        return;
+      }
+      const known = parentsOf(id).map(pid => lineage.get(pid)).filter(Boolean);
+      if (known.length === 0) return;
+      const share = {};
+      known.forEach(vector => {
+        Object.entries(vector).forEach(([f, w]) => { share[f] = (share[f] || 0) + w / known.length; });
+      });
+      lineage.set(id, share);
+    });
+  });
+
+  // Put the founders in an order where those who share many descendants stand next to each other
+  const founderPlace = seriate(
+    founders.length,
+    (a, b) => {
+      let overlap = 0;
+      lineage.forEach(vector => { overlap += (vector[a] || 0) * (vector[b] || 0); });
+      return overlap;
+    }
+  );
+  const scoreOf = id => {
+    const vector = lineage.get(id);
+    if (!vector) return null;
+    return Object.entries(vector).reduce((sum, [f, w]) => sum + w * founderPlace[f], 0);
+  };
+  const scoreOfUnit = unit => {
+    const scores = unit.members.map(scoreOf).filter(v => v !== null);
+    return scores.length > 0 ? mean(scores) : null;
+  };
+  const unitScore = new Map(units.map(unit => [unit, scoreOfUnit(unit)]));
+  if (ORDER_BY_LINEAGE && founders.length <= MAX_FOUNDERS) {
+    const byScore = (a, b) => {
+      const x = unitScore.get(a);
+      const y = unitScore.get(b);
+      if (x !== null && y !== null && Math.abs(x - y) > 1e-6) return x - y;
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      return dfsIndex.get(a) - dfsIndex.get(b);
+    };
+    units.forEach(unit => rows[unit.level].push(unit));
+    rows.forEach(row => row.sort(byScore));
+  } else {
+    dfsOrder.forEach(unit => rows[unit.level].push(unit));
+  }
 
   // -------------------------------------------------------------------------
   // 5. Horizontal positions: pull every row toward the families above and below it
@@ -395,13 +502,20 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
     flipUnit(unit);
   };
 
+  // Free space after the i-th unit of a row: a little more where one lineage ends and another starts
+  const gapAfter = (row, i) => {
+    const a = unitScore.get(row[i]);
+    const b = i + 1 < row.length ? unitScore.get(row[i + 1]) : null;
+    return a !== null && b !== null && b !== undefined && Math.abs(a - b) >= ZONE_STEP ? UNIT_GAP + ZONE_GAP : UNIT_GAP;
+  };
+
   // Place the units of one row as close as possible to what they want, without overlapping
   const settleRow = (row, wishes) => {
     const offsets = [];
     let used = 0;
     row.forEach(unit => {
       offsets.push(used);
-      used += unit.width + UNIT_GAP;
+      used += unit.width + gapAfter(row, offsets.length - 1);
     });
 
     // Blocks of units that have to move together (pool adjacent violators)
@@ -427,9 +541,9 @@ export function calculateGraphLayout(people, unlinked = [], unlinkedLabel = 'Unl
 
   const pack = row => {
     let x = 0;
-    row.forEach(unit => {
+    row.forEach((unit, i) => {
       unit.left = x;
-      x += unit.width + UNIT_GAP;
+      x += unit.width + gapAfter(row, i);
     });
   };
   const levelsInOrder = down => {

@@ -300,6 +300,42 @@ describe('calculateGraphLayout', () => {
     });
   });
 
+  describe('lineages', () => {
+    // Two founder couples (A and B). a1 (from A) and b1 (from B) have a child, m. a2 and b2 are
+    // their pure A and B siblings, with a child each (a3, b3).
+    const crossed = () => [
+      person('ga1', { spouses: ['ga2'], children: ['a1', 'a2'] }),
+      person('ga2', { gender: 'female', spouses: ['ga1'], children: ['a1', 'a2'] }),
+      person('gb1', { spouses: ['gb2'], children: ['b1', 'b2'] }),
+      person('gb2', { gender: 'female', spouses: ['gb1'], children: ['b1', 'b2'] }),
+      person('a1', { parents: ['ga1', 'ga2'], birthDate: '1950-01-01', spouses: ['b1'], children: ['m'] }),
+      person('b1', { gender: 'female', parents: ['gb1', 'gb2'], birthDate: '1951-01-01', spouses: ['a1'], children: ['m'] }),
+      person('a2', { parents: ['ga1', 'ga2'], birthDate: '1952-01-01', children: ['a3'] }),
+      person('b2', { parents: ['gb1', 'gb2'], birthDate: '1953-01-01', children: ['b3'] }),
+      person('m', { parents: ['a1', 'b1'], birthDate: '1980-01-01' }),
+      person('a3', { parents: ['a2'], birthDate: '1981-01-01' }),
+      person('b3', { parents: ['b2'], birthDate: '1982-01-01' })
+    ];
+
+    it('puts someone who descends from both families between the two, whatever the input order', () => {
+      const people = crossed();
+      [0, 3, 6].forEach((shift) => {
+        const layout = layoutOf(people.slice(shift).concat(people.slice(0, shift)));
+        const x = (id) => cardOf(layout, id).position.x;
+        expect((x('m') - x('a3')) * (x('m') - x('b3'))).toBeLessThan(0);
+      });
+    });
+
+    it('keeps the pure descendants of each family on their own side', () => {
+      const layout = layoutOf(crossed());
+      const x = (id) => cardOf(layout, id).position.x;
+      const sign = Math.sign(x('a3') - x('b3'));
+      expect(sign).not.toBe(0);
+      expect(Math.sign(x('a2') - x('b2'))).toBe(sign);
+      expect(Math.sign(x('ga1') - x('gb1'))).toBe(sign);
+    });
+  });
+
   describe('a busy generation', () => {
     // one couple with 8 children who each have 4 children on their own: 32 cousins in one generation
     const cousins = () => {
